@@ -77,7 +77,7 @@ foreach(SOURCE_MODULE ${MODULES_MODULE_LIST})
   endif()
 
   # Use only static for mod-ALE
-  if (SOURCE_MODULE MATCHES "mod-ale")
+  if (SOURCE_MODULE MATCHES "mod-ale|mod-eluna")
     ConfigureALEModule(${SOURCE_MODULE})
   endif()
 

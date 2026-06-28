@@ -19,21 +19,3 @@ if (LUA_VERSION MATCHES "luajit")
 else()
   add_subdirectory(src/lualib/lua)
 endif()
-
-# Collect all module source files
-file(GLOB_RECURSE ALE_SOURCES
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
-)
-
-# Add the module sources to the project
-foreach(SOURCE_FILE ${ALE_SOURCES})
-  list(APPEND PRIVATE_SOURCES_MODULES ${SOURCE_FILE})
-endforeach()
-
-# Include directories
-list(APPEND PUBLIC_INCLUDES
-  "${CMAKE_CURRENT_SOURCE_DIR}/src"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/LuaEngine"
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/lualib"
-)
