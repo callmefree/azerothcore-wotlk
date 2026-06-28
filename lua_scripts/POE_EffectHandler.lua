@@ -1,6 +1,6 @@
 -- POE_EffectHandler.lua
--- 采用 "全局重算" 模式：每次变更时重新汇总所有节点加成
--- 彻底解决 "移除顺序导致属性错误" 问题
+-- 基于隐藏光环（Passive Aura）的效果执行器
+-- 属性叠加由魔兽引擎原生管理，Lua 只做 AddAura/RemoveAura
 
 local POE_EffectHandler = {}
 local EffectRegistry = {}
@@ -9,45 +9,56 @@ function POE_EffectHandler.RegisterEffect(name, func)
     EffectRegistry[name] = func
 end
 
--- 核心：根据当前已激活节点，计算并应用所有属性变化
-function POE_EffectHandler.RefreshAllStats(player)
-    local guid = player:GetGUID()
-    local learned = POE_Data.LoadPlayerTalents(guid)
-    local statMods = {}
-
-    -- 1. 遍历所有已点节点，汇总效果
-    for nodeId, _ in pairs(learned) do
-        local effects = POE_Data.GetNodeEffects(nodeId)
-        for _, e in ipairs(effects) do
-            if e.script == "TalentEffect_StatPlus" then
-                local statId = e.param1
-                local amount = e.param2
-                statMods[statId] = (statMods[statId] or 0) + amount
-            end
+-- 应用节点效果（正向：添加光环）
+function POE_EffectHandler.ApplyEffects(player, nodeId)
+    local effects = POE_Data.GetNodeEffects(nodeId)
+    for _, e in ipairs(effects) do
+        local func = EffectRegistry[e.script]
+        if func then
+            func(player, e, true)
+        else
+            print("[POE] 警告: 未注册的效果脚本 " .. e.script)
         end
     end
+end
 
-    -- 2. 将属性变动应用到角色身上（一次性覆盖）
-    for statId, totalBonus in pairs(statMods) do
-        local base = player:GetBaseStat(statId)
-        player:SetBaseStat(statId, base + totalBonus)
+-- 移除节点效果（反向：移除光环）
+function POE_EffectHandler.RemoveEffects(player, nodeId)
+    local effects = POE_Data.GetNodeEffects(nodeId)
+    for _, e in ipairs(effects) do
+        local func = EffectRegistry[e.script]
+        if func then
+            func(player, e, false)
+        else
+            print("[POE] 警告: 未注册的效果脚本 " .. e.script)
+        end
     end
 end
 
--- 兼容旧接口：调用 ApplyEffects 或 RemoveEffects 时，统一触发重算
-function POE_EffectHandler.ApplyEffects(player, nodeId)
-    POE_EffectHandler.RefreshAllStats(player)
-    player:SendBroadcastMessage("|cff00ff00[星盘] 节点效果已应用，属性已重算|r")
-end
-
-function POE_EffectHandler.RemoveEffects(player, nodeId)
-    POE_EffectHandler.RefreshAllStats(player)
-    player:SendBroadcastMessage("|cffff4444[星盘] 节点已移除，属性已重算|r")
-end
-
--- 注册基础属性加成效果（保留以供查询，实际逻辑由 RefreshAllStats 统一处理）
-POE_EffectHandler.RegisterEffect("TalentEffect_StatPlus", function(player, statId, amount)
-    -- 此函数不再直接修改属性，由 RefreshAllStats 统一处理
+-- 通用光环效果
+POE_EffectHandler.RegisterEffect("TalentEffect_StatPlus", function(player, e, isApply)
+    if e.spell_id == 0 then
+        print("[POE] 警告: 效果缺少 spell_id")
+        return
+    end
+    if isApply then
+        player:AddAura(e.spell_id, player)
+    else
+        player:RemoveAura(e.spell_id)
+    end
 end)
+
+-- 登录恢复：遍历已点节点，统一应用光环
+function POE_EffectHandler.RestoreOnLogin(player)
+    local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
+    local count = 0
+    for nodeId, _ in pairs(learned) do
+        POE_EffectHandler.ApplyEffects(player, nodeId)
+        count = count + 1
+    end
+    if count > 0 then
+        player:SendBroadcastMessage("|cff00ff00[星盘] 已恢复 " .. count .. " 个节点光环效果|r")
+    end
+end
 
 return POE_EffectHandler
