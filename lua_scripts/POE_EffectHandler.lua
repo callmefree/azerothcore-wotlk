@@ -51,6 +51,85 @@ POE_EffectHandler.RegisterEffect("TalentEffect_StatPlus", function(player, e, is
     end
 end)
 
+-- 学习/移除技能（node_type='skill'）
+POE_EffectHandler.RegisterEffect("TalentEffect_LearnSpell", function(player, e, isApply)
+    if e.spell_id == 0 then
+        print("[POE] 警告: LearnSpell 缺少 spell_id")
+        return
+    end
+    if isApply then
+        player:LearnSpell(e.spell_id)
+    else
+        player:RemoveSpell(e.spell_id)
+    end
+end)
+
+-- ===== 事件驱动的伤害/效果修正系统 =====
+
+POE_EffectHandler.PlayerMods = {}  -- guid -> {schoolMods={}, igniteChance=0}
+
+-- 伤害百分比修正（param1=学派掩码, param2=百分比）
+POE_EffectHandler.RegisterEffect("TalentEffect_ModDamagePercent", function(player, e, isApply)
+    local guid = player:GetGUID()
+    if not POE_EffectHandler.PlayerMods[guid] then
+        POE_EffectHandler.PlayerMods[guid] = { schoolMods = {}, igniteChance = 0 }
+    end
+    local mods = POE_EffectHandler.PlayerMods[guid]
+    local school = e.param1
+    local pct = e.param2
+    if isApply then
+        mods.schoolMods[school] = (mods.schoolMods[school] or 0) + pct
+    else
+        mods.schoolMods[school] = (mods.schoolMods[school] or 0) - pct
+        if mods.schoolMods[school] <= 0 then mods.schoolMods[school] = nil end
+    end
+end)
+
+-- 点燃几率（param1=几率百分比, param2=预留）
+POE_EffectHandler.RegisterEffect("TalentEffect_IgniteChance", function(player, e, isApply)
+    local guid = player:GetGUID()
+    if not POE_EffectHandler.PlayerMods[guid] then
+        POE_EffectHandler.PlayerMods[guid] = { schoolMods = {}, igniteChance = 0 }
+    end
+    if isApply then
+        POE_EffectHandler.PlayerMods[guid].igniteChance = (POE_EffectHandler.PlayerMods[guid].igniteChance or 0) + e.param1
+    else
+        POE_EffectHandler.PlayerMods[guid].igniteChance = math.max(0, (POE_EffectHandler.PlayerMods[guid].igniteChance or 0) - e.param1)
+    end
+end)
+
+-- 玩家造成伤害事件 — 应用伤害修正
+local function OnDamageDealt(event, player, victim, damage, damageType, school)
+    local guid = player:GetGUID()
+    local mods = POE_EffectHandler.PlayerMods[guid]
+    if not mods then return damage end
+
+    local modified = damage
+    -- 各学派伤害修正（school 是学派掩码，param1 是单个学派ID）
+    for s, pct in pairs(mods.schoolMods) do
+        modified = modified + math.floor(damage * pct / 100)
+    end
+
+    -- 点燃触发（仅对法术伤害生效）
+    if mods.igniteChance and mods.igniteChance > 0 and school > 0 then
+        if math.random(1, 100) <= mods.igniteChance then
+            -- 对目标施加点燃 DOT
+            victim:SetAuraStack(23267, victim, 1)
+        end
+    end
+
+    return modified
+end
+
+-- 玩家登出时清理缓存
+local function OnPlayerLogout(event, player)
+    POE_EffectHandler.PlayerMods[player:GetGUID()] = nil
+end
+
+-- 注册全局事件
+RegisterPlayerEvent(7, OnDamageDealt)   -- 7 = PLAYER_EVENT_ON_DAMAGE_DEALT
+RegisterPlayerEvent(4, OnPlayerLogout)  -- 4 = PLAYER_EVENT_ON_LOGOUT
+
 -- 登录恢复：遍历已点节点，统一应用光环
 function POE_EffectHandler.RestoreOnLogin(player)
     local learned = POE_Data.LoadPlayerTalents(player:GetGUID())

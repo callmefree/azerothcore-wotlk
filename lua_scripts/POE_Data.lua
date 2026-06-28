@@ -9,7 +9,7 @@ POE_Data.Effects = {}
 POE_Data.Bindings = {}
 
 function POE_Data.LoadAllNodes()
-    local nodeResult = WorldDBQuery("SELECT node_id, name, description, pos_x, pos_y, icon_id, max_rank, cost, connections, node_type FROM poe_talent_nodes")
+    local nodeResult = WorldDBQuery("SELECT node_id, name, description, pos_x, pos_y, icon_id, max_rank, cost, connections, node_type, class_mask FROM poe_talent_nodes")
     POE_Data.Nodes = {}
     POE_Data.NodeList = {}
     if nodeResult then
@@ -29,7 +29,8 @@ function POE_Data.LoadAllNodes()
                 cost = nodeResult:GetUInt8("cost"),
                 connections = connections,
                 node_type = nodeResult:GetString("node_type"),
-                max_rank = nodeResult:GetUInt8("max_rank")
+                max_rank = nodeResult:GetUInt8("max_rank"),
+                class_mask = nodeResult:GetUInt32("class_mask") or 0
             }
             table.insert(POE_Data.NodeList, nodeId)
         until not nodeResult:NextRow()

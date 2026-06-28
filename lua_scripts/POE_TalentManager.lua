@@ -3,6 +3,27 @@
 
 local NPC_ENTRY = 200000  -- 星盘NPC的entry ID
 
+-- 职业掩码映射（WoW 职业ID → 位掩码）
+local CLASS_MASK = {
+    [1] = 1,      -- 战士
+    [2] = 2,      -- 圣骑
+    [3] = 4,      -- 猎人
+    [4] = 8,      -- 盗贼
+    [5] = 16,     -- 牧师
+    [6] = 32,     -- 死骑
+    [7] = 64,     -- 萨满
+    [8] = 128,    -- 法师
+    [9] = 256,    -- 术士
+    [10] = 512,   -- 小德
+    [11] = 1024,  -- 武僧
+    [12] = 2048,  -- 恶魔猎手
+}
+
+local function GetPlayerClassMask(player)
+    local classId = player:GetClass()
+    return CLASS_MASK[classId] or 0
+end
+
 -- ===== 天赋点工具函数 =====
 
 local function GetTalentPoints(player)
@@ -28,6 +49,13 @@ end
 local function CanLearn(player, nodeId, learnedTalents)
     local node = POE_Data.GetNodeData(nodeId)
     if not node then return false, "节点不存在" end
+
+    -- 职业限制：class_mask>0 的节点仅对对应职业可见/可学
+    if node.class_mask and node.class_mask > 0 then
+        if node.class_mask ~= GetPlayerClassMask(player) then
+            return false, "职业不符"
+        end
+    end
 
     -- 起点：未学习时可免费激活
     if node.node_type == "start" and not learnedTalents[nodeId] then
@@ -73,17 +101,26 @@ local function OpenTalentMenu(player)
     gossip:AddText("剩余天赋点: |cff00ff00" .. points .. "|r")
     gossip:AddText("------------------")
 
-    -- 遍历所有节点（按 NodeList 有序遍历）
+    -- 遍历所有节点（按 NodeList 有序遍历，按职业过滤）
+    local playerMask = GetPlayerClassMask(player)
     for _, id in ipairs(POE_Data.NodeList) do
         local node = POE_Data.Nodes[id]
-        local status = "|cff888888未解锁|r"
-        if learned[id] then
-            status = "|cff00ff00已激活|r"
+        -- 过滤职业专属节点
+        if node.class_mask and node.class_mask > 0 and node.class_mask ~= playerMask then
+            -- 跳过
         else
-            local can, _ = CanLearn(player, id, learned)
-            if can then status = "|cffffff00[可加点]|r" end
+            local status = "|cff888888未解锁|r"
+            if learned[id] then
+                status = "|cff00ff00已激活|r"
+            else
+                local can, _ = CanLearn(player, id, learned)
+                if can then status = "|cffffff00[可加点]|r" end
+            end
+            local icon = ""
+            if node.node_type == "skill" then icon = "|T135128:0|t " end
+            if node.node_type == "start" then icon = "|T132347:0|t " end
+            gossip:AddMenuItem(id, icon .. node.name .. " " .. status, 0)
         end
-        gossip:AddMenuItem(id, node.name .. " " .. status, 0)
     end
 
     gossip:AddMenuItem(999, "|cffff4444【重置所有天赋点】（测试用）|r", 1)

@@ -100,5 +100,57 @@ VALUES (70000, '后悔石', 15, 0, 3, 0, 1, 20, 70000, 2, '右键使用，重置
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);
 
 -- ============================================================================
+-- Phase 2 种子数据：多职业技能节点 + 强化节点
+-- ============================================================================
+
+-- 更新现有节点的 class_mask（战士=1）
+UPDATE `poe_talent_nodes` SET `class_mask` = 1 WHERE `node_id` IN (1,2,3);
+
+-- 战士技能线
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(8,  '英勇打击', '学会英勇打击技能', 3, 0, 2, '2',   'skill',   1),
+(9,  '强化英勇', '英勇打击伤害提高5%', 4, -1, 1, '8',  'small',   1),
+(10, '破甲加成', '英勇打击额外降低护甲10%', 4, 1, 1, '8', 'small', 1)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- 法师火焰线
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(11, '火焰起点', '法师的火焰天赋起点', 0, 5, 0, '12',  'start',   256),
+(12, '智力+5',   '增加5点智力',         1, 5, 1, '11,13', 'small',  256),
+(13, '智力+10',  '增加10点智力',        2, 5, 1, '12',    'small',  256),
+(14, '火球术',   '学会火球术技能',      3, 5, 2, '12',    'skill',  256),
+(15, '火焰伤害+5%', '火焰法术伤害提高5%', 4, 4, 1, '14',  'small',  256),
+(16, '点燃几率', '火焰法术有10%几率点燃目标', 4, 6, 1, '14', 'small', 256)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- Phase 2 效果定义（LearnSpell + ModDamagePercent）
+INSERT INTO `poe_talent_effects` (`effect_id`, `effect_name`, `script_name`, `param1`, `param2`, `spell_id`) VALUES
+(3, 'LearnSpell: 英勇打击', 'TalentEffect_LearnSpell', 0, 0, 78),
+(4, 'LearnSpell: 火球术',   'TalentEffect_LearnSpell', 0, 0, 133),
+(5, 'ModDamagePercent: 英勇+5%', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+(6, 'ModDamagePercent: 火焰+5%', 'TalentEffect_ModDamagePercent', 2, 5, 0),
+(7, '法术触发: 点燃', 'TalentEffect_IgniteChance', 10, 0, 0)
+ON DUPLICATE KEY UPDATE `effect_name` = VALUES(`effect_name`), `script_name` = VALUES(`script_name`), `param1` = VALUES(`param1`), `param2` = VALUES(`param2`), `spell_id` = VALUES(`spell_id`);
+
+-- Phase 2 节点-效果绑定
+INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
+(8, 3),
+(9, 5),
+(14, 4),
+(15, 6),
+(16, 7)
+ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`effect_id`);
+
+-- ============================================================================
+-- Phase 2 迁移：ENUM 扩展 + class_mask
+-- ============================================================================
+
+-- 添加 'skill' 到 node_type ENUM
+ALTER TABLE `poe_talent_nodes` MODIFY COLUMN `node_type` ENUM('small','notable','keystone','start','skill') NOT NULL DEFAULT 'small';
+
+-- 添加 class_mask 列（职业掩码）
+ALTER TABLE `poe_talent_nodes` ADD COLUMN IF NOT EXISTS `class_mask` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '职业掩码(1=战士,2=圣骑,4=猎人,8=盗贼,16=牧师,32=死骑,64=萨满,128=法师,256=术士,512=小德,1024=武僧,2048=恶魔猎手)' AFTER `talent_group`;
+
+-- ============================================================================
 -- 完成
 -- ============================================================================
