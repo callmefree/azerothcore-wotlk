@@ -4,13 +4,14 @@
 
 POE_Data = {}
 POE_Data.Nodes = {}
+POE_Data.NodeList = {}
 POE_Data.Effects = {}
 POE_Data.Bindings = {}
 
-function POE_Data.LoadCache()
-    -- 加载 poe_talent_nodes，connections 字段自动解析为数字表
+function POE_Data.LoadAllNodes()
     local nodeResult = WorldDBQuery("SELECT node_id, name, description, pos_x, pos_y, icon_id, max_rank, cost, connections, node_type FROM poe_talent_nodes")
     POE_Data.Nodes = {}
+    POE_Data.NodeList = {}
     if nodeResult then
         repeat
             local connStr = nodeResult:GetString("connections")
@@ -20,8 +21,9 @@ function POE_Data.LoadCache()
                     table.insert(connections, tonumber(id))
                 end
             end
-            POE_Data.Nodes[nodeResult:GetUInt32("node_id")] = {
-                id = nodeResult:GetUInt32("node_id"),
+            local nodeId = nodeResult:GetUInt32("node_id")
+            POE_Data.Nodes[nodeId] = {
+                id = nodeId,
                 name = nodeResult:GetString("name"),
                 desc = nodeResult:GetString("description"),
                 cost = nodeResult:GetUInt8("cost"),
@@ -29,10 +31,12 @@ function POE_Data.LoadCache()
                 node_type = nodeResult:GetString("node_type"),
                 max_rank = nodeResult:GetUInt8("max_rank")
             }
+            table.insert(POE_Data.NodeList, nodeId)
         until not nodeResult:NextRow()
     end
+end
 
-    -- 加载 poe_talent_effects（含 spell_id）
+function POE_Data.LoadAllEffects()
     local effectResult = WorldDBQuery("SELECT effect_id, script_name, param1, param2, spell_id FROM poe_talent_effects")
     POE_Data.Effects = {}
     if effectResult then
@@ -45,8 +49,9 @@ function POE_Data.LoadCache()
             }
         until not effectResult:NextRow()
     end
+end
 
-    -- 加载 poe_node_effect_binding
+function POE_Data.LoadAllBindings()
     local bindResult = WorldDBQuery("SELECT node_id, effect_id FROM poe_node_effect_binding")
     POE_Data.Bindings = {}
     if bindResult then
@@ -57,6 +62,12 @@ function POE_Data.LoadCache()
             table.insert(POE_Data.Bindings[nodeId], effectId)
         until not bindResult:NextRow()
     end
+end
+
+function POE_Data.LoadCache()
+    POE_Data.LoadAllNodes()
+    POE_Data.LoadAllEffects()
+    POE_Data.LoadAllBindings()
 end
 
 function POE_Data.GetNodeData(nodeId)
@@ -84,6 +95,17 @@ function POE_Data.LoadPlayerTalents(guid)
         until not result:NextRow()
     end
     return learned
+end
+
+function POE_Data.GetTalentPoints(player)
+    local result = CharDBQuery("SELECT poe_talent_points FROM characters WHERE guid = " .. player:GetGUID())
+    if result then return result:GetUInt16("poe_talent_points") end
+    return 0
+end
+
+function POE_Data.SetTalentPoints(player, points)
+    points = math.max(0, tonumber(points) or 0)
+    CharDBExecute("UPDATE characters SET poe_talent_points = " .. points .. " WHERE guid = " .. player:GetGUID())
 end
 
 function POE_Data.ReloadCache()

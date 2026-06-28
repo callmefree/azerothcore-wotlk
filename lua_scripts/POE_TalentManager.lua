@@ -1,17 +1,16 @@
 -- POE_TalentManager.lua
--- 星盘系统总机：Gossip菜单/加点/移除/登录恢复
+-- 星盘系统总机：Gossip菜单/加点/移除/登录恢复/GM命令
 
 local NPC_ENTRY = 200000  -- 星盘NPC的entry ID
 
 -- ===== 天赋点工具函数 =====
 
 local function GetTalentPoints(player)
-    local result = CharDBQuery("SELECT poe_talent_points FROM characters WHERE guid = " .. player:GetGUID())
-    if result then return result:GetUInt16("poe_talent_points") else return 0 end
+    return POE_Data.GetTalentPoints(player) or 0
 end
 
 local function SetTalentPoints(player, points)
-    CharDBExecute("UPDATE characters SET poe_talent_points = " .. points .. " WHERE guid = " .. player:GetGUID())
+    POE_Data.SetTalentPoints(player, points)
 end
 
 local function SaveTalent(player, nodeId)
@@ -40,16 +39,18 @@ local function CanLearn(player, nodeId, learnedTalents)
         return false, "该节点已满级"
     end
 
-    -- 连接有效性：与任一已激活节点相连即可
-    local connected = false
-    for _, connId in ipairs(node.connections) do
-        if learnedTalents[connId] then
-            connected = true
-            break
+    -- 连接有效性：起点节点首次免费激活跳过，其他节点必须与已激活节点相连
+    if node.node_type ~= "start" or learnedTalents[nodeId] then
+        local connected = false
+        for _, connId in ipairs(node.connections) do
+            if learnedTalents[connId] then
+                connected = true
+                break
+            end
         end
-    end
-    if not connected then
-        return false, "节点未解锁（需要相邻节点已点亮）"
+        if not connected then
+            return false, "节点未解锁（需要相邻节点已点亮）"
+        end
     end
 
     -- 天赋点足够
@@ -72,8 +73,9 @@ local function OpenTalentMenu(player)
     gossip:AddText("剩余天赋点: |cff00ff00" .. points .. "|r")
     gossip:AddText("------------------")
 
-    -- 遍历所有节点
-    for id, node in pairs(POE_Data.Nodes) do
+    -- 遍历所有节点（按 NodeList 有序遍历）
+    for _, id in ipairs(POE_Data.NodeList) do
+        local node = POE_Data.Nodes[id]
         local status = "|cff888888未解锁|r"
         if learned[id] then
             status = "|cff00ff00已激活|r"
@@ -106,12 +108,17 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
     -- 全量重置（测试专用）
     if nodeId == 999 then
         local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
+        local spentPoints = 0
         for nid, _ in pairs(learned) do
+            local node = POE_Data.GetNodeData(nid)
+            if node then spentPoints = spentPoints + node.cost end
             POE_EffectHandler.RemoveEffects(player, nid)
             RemoveTalent(player, nid)
         end
-        SetTalentPoints(player, 10)
-        player:SendBroadcastMessage("|cffff4444已重置所有天赋点，获得10点天赋点|r")
+        -- 动态计算：当前可用点 = 已有点数 + 已花点数
+        local currentPoints = GetTalentPoints(player)
+        SetTalentPoints(player, currentPoints + spentPoints)
+        player:SendBroadcastMessage("|cffff4444已重置所有天赋点，返还 " .. spentPoints .. " 点|r")
         OpenTalentMenu(player)
         return true
     end
@@ -142,7 +149,9 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
     end)
 
     if not success then
-        RemoveTalent(player, nodeId)
+        -- 递减等级回滚（非直接删除，避免 max_rank>1 时丢失早期等级）
+        CharDBExecute("UPDATE character_poe_talents SET points_spent = points_spent - 1 WHERE character_guid = " .. player:GetGUID() .. " AND node_id = " .. nodeId)
+        CharDBExecute("DELETE FROM character_poe_talents WHERE character_guid = " .. player:GetGUID() .. " AND node_id = " .. nodeId .. " AND points_spent <= 0")
         SetTalentPoints(player, pointsBefore)
         player:SendBroadcastMessage("|cffff4444[星盘] 加点失败，系统已自动回滚。|r")
         print("[POE] 加点错误: " .. tostring(err))
@@ -159,7 +168,37 @@ local function OnPlayerLogin(event, player)
     POE_EffectHandler.RestoreOnLogin(player)
 end
 
+-- ===== GM 命令（合并分发器）=====
+
+local function OnCommand(event, player, command)
+    -- .poe reload — 热重载天赋数据
+    if string.find(command, "poe reload") then
+        POE_Data.LoadAllNodes()
+        POE_Data.LoadAllEffects()
+        POE_Data.LoadAllBindings()
+        print("[POE] 天赋数据已热重载")
+        player:SendBroadcastMessage("|cff00ff00[星盘] 数据已重载|r")
+        return true
+    end
+
+    -- .poe addpoints N — 给当前玩家加天赋点
+    if string.find(command, "^poe addpoints ") then
+        local amount = tonumber(string.match(command, "^poe addpoints (%d+)"))
+        if not amount or amount <= 0 then
+            player:SendBroadcastMessage("|cffff4444用法: .poe addpoints <数量>|r")
+            return true
+        end
+        local current = GetTalentPoints(player)
+        SetTalentPoints(player, current + amount)
+        player:SendBroadcastMessage("|cff00ff00[星盘] 已添加 " .. amount .. " 天赋点（当前: " .. (current + amount) .. "）|r")
+        return true
+    end
+
+    return false
+end
+
 -- ===== 注册事件 =====
 RegisterCreatureGossipEvent(NPC_ENTRY, 1, OnGossipHello)
 RegisterCreatureGossipEvent(NPC_ENTRY, 2, OnGossipSelect)
 RegisterPlayerEvent(3, OnPlayerLogin)
+RegisterPlayerEvent(42, OnCommand)

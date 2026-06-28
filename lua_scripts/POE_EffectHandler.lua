@@ -2,7 +2,7 @@
 -- 基于隐藏光环（Passive Aura）的效果执行器
 -- 属性叠加由魔兽引擎原生管理，Lua 只做 AddAura/RemoveAura
 
-local POE_EffectHandler = {}
+POE_EffectHandler = {}
 local EffectRegistry = {}
 
 function POE_EffectHandler.RegisterEffect(name, func)
@@ -42,7 +42,10 @@ POE_EffectHandler.RegisterEffect("TalentEffect_StatPlus", function(player, e, is
         return
     end
     if isApply then
-        player:AddAura(e.spell_id, player)
+        local success = player:AddAura(e.spell_id, player)
+        if not success then
+            print("[POE] 添加光环失败: spell_id=" .. e.spell_id)
+        end
     else
         player:RemoveAura(e.spell_id)
     end
@@ -60,5 +63,3 @@ function POE_EffectHandler.RestoreOnLogin(player)
         player:SendBroadcastMessage("|cff00ff00[星盘] 已恢复 " .. count .. " 个节点光环效果|r")
     end
 end
-
-return POE_EffectHandler

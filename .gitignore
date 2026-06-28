@@ -114,3 +114,6 @@ local.properties
 #  !modules/yourmodule
 #
 # ==================
+
+# WorkBuddy project memory
+.workbuddy/
