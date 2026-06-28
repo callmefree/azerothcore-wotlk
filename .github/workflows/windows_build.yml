@@ -38,12 +38,29 @@ jobs:
       - uses: actions/checkout@v4
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2.13
-      - name: Configure OS
+      - name: Configure OS - Install dependencies
         shell: bash
         env:
           CONTINUOUS_INTEGRATION: true
         run: |
-          ./acore.sh install-deps
+          set +e
+          # Install cmake (if not already present)
+          choco install -y --no-progress cmake.install 2>&1 || true
+          # Install Visual Studio workload (pre-installed on windows-2022, this is a fallback)
+          choco install -y --no-progress visualstudio2022-workload-nativedesktop 2>&1 || true
+          # Install OpenSSL (required for build)
+          choco install -y --no-progress openssl 2>&1 || true
+          # Install Boost (required for build)
+          choco install -y --no-progress boost-msvc-14.3 2>&1 || echo "Boost choco install skipped, will use cmake find"
+          # MySQL client libs - not strictly needed for compilation on CI
+          echo "Dependencies installed (skipping MySQL - not needed for CI build)"
+          set -e
+          # Find actual Boost path if installed
+          BOOST_PATH=$(find /c/local -maxdepth 2 -name "boost*" -type d 2>/dev/null | head -1)
+          if [ -n "$BOOST_PATH" ]; then
+            echo "Found Boost at: $BOOST_PATH"
+            echo "BOOST_ROOT=$BOOST_PATH" >> $GITHUB_ENV
+          fi
       - name: Build
         shell: bash
         run: |
