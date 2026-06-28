@@ -19,7 +19,7 @@
 void AddSC_ALE();
 
 // Add all
-void Addmod_aleScripts()
+void Addmod_elunaScripts()
 {
     AddSC_ALE();
 }
