@@ -15,11 +15,13 @@ local function SetTalentPoints(player, points)
 end
 
 local function SaveTalent(player, nodeId)
-    CharDBExecute("INSERT INTO character_poe_talents (character_guid, node_id, points_spent) VALUES (" .. player:GetGUID() .. ", " .. nodeId .. ", 1) ON DUPLICATE KEY UPDATE points_spent = points_spent + 1")
+    local nid = tonumber(nodeId) or 0
+    CharDBExecute("INSERT INTO character_poe_talents (character_guid, node_id, points_spent) VALUES (" .. player:GetGUID() .. ", " .. nid .. ", 1) ON DUPLICATE KEY UPDATE points_spent = points_spent + 1")
 end
 
 local function RemoveTalent(player, nodeId)
-    CharDBExecute("DELETE FROM character_poe_talents WHERE character_guid = " .. player:GetGUID() .. " AND node_id = " .. nodeId)
+    local nid = tonumber(nodeId) or 0
+    CharDBExecute("DELETE FROM character_poe_talents WHERE character_guid = " .. player:GetGUID() .. " AND node_id = " .. nid)
 end
 
 -- ===== 验证逻辑 =====
@@ -97,12 +99,16 @@ end
 local function OnGossipSelect(event, player, creature, sender, action, gossipId)
     if creature:GetEntry() ~= NPC_ENTRY then return false end
 
+    -- 强制转换 action 为数字，防止 SQL 注入
+    local nodeId = tonumber(action) or 0
+    if nodeId == 0 then return true end
+
     -- 全量重置（测试专用）
-    if action == 999 then
+    if nodeId == 999 then
         local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
-        for nodeId, _ in pairs(learned) do
-            POE_EffectHandler.RemoveEffects(player, nodeId)
-            RemoveTalent(player, nodeId)
+        for nid, _ in pairs(learned) do
+            POE_EffectHandler.RefreshAllStats(player)
+            RemoveTalent(player, nid)
         end
         SetTalentPoints(player, 10)
         player:SendBroadcastMessage("|cffff4444已重置所有天赋点，获得10点天赋点|r")
@@ -110,24 +116,38 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
         return true
     end
 
-    local nodeId = action
+    -- 加点事务（使用 pcall 捕获异常）
     local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
     local can, reason = CanLearn(player, nodeId, learned)
 
-    if can then
-        local node = POE_Data.GetNodeData(nodeId)
-        local cost = node.cost
-        -- 先写库（优先确保数据持久化）
-        SaveTalent(player, nodeId)
-        -- 应用效果
-        POE_EffectHandler.ApplyEffects(player, nodeId)
-        -- 扣天赋点（起点 cost=0 不扣）
-        if cost > 0 then
-            SetTalentPoints(player, GetTalentPoints(player) - cost)
-        end
-        player:SendBroadcastMessage("|cff00ff00[星盘] 已点亮节点: |r" .. node.name)
-    else
+    if not can then
         player:SendBroadcastMessage("|cffff4444[星盘] |r" .. reason)
+        OpenTalentMenu(player)
+        return true
+    end
+
+    local node = POE_Data.GetNodeData(nodeId)
+    if not node then return true end
+
+    local pointsBefore = GetTalentPoints(player)
+
+    local success, err = pcall(function()
+        SaveTalent(player, nodeId)
+        local newPoints = pointsBefore - node.cost
+        if newPoints < 0 then
+            error("天赋点不足（事务内检查）")
+        end
+        SetTalentPoints(player, newPoints)
+        POE_EffectHandler.RefreshAllStats(player)
+    end)
+
+    if not success then
+        RemoveTalent(player, nodeId)
+        SetTalentPoints(player, pointsBefore)
+        POE_EffectHandler.RefreshAllStats(player)
+        player:SendBroadcastMessage("|cffff4444[星盘] 加点失败，系统已自动回滚。错误: " .. tostring(err) .. "|r")
+    else
+        player:SendBroadcastMessage("|cff00ff00[星盘] 已点亮节点: |r" .. node.name)
     end
 
     OpenTalentMenu(player)
@@ -138,11 +158,9 @@ end
 local function OnPlayerLogin(event, player)
     local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
     local count = 0
-    for nodeId, _ in pairs(learned) do
-        POE_EffectHandler.ApplyEffects(player, nodeId)
-        count = count + 1
-    end
+    for _, _ in pairs(learned) do count = count + 1 end
     if count > 0 then
+        POE_EffectHandler.RefreshAllStats(player)
         player:SendBroadcastMessage("|cff00ff00[星盘] 已恢复 " .. count .. " 个节点效果|r")
     end
 end
