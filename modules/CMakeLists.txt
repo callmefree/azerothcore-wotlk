@@ -277,6 +277,15 @@ add_library(modules STATIC
     ${SCRIPT_MODULE_PRIVATE_SCRIPTLOADER}
     ${PRIVATE_SOURCES_MODULES})
 
+# Suppress GCC 14 warnings-turned-errors in third-party module code
+if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(modules PRIVATE
+    -Wno-interference-size
+    -Wno-misleading-indentation
+    -Wno-array-bounds
+    -Wno-maybe-uninitialized)
+endif()
+
 if (MOD_ALE_FOUND)
     target_link_libraries(modules PUBLIC lualib)
     # Also ensure include directories are propagated for modules that include sol.hpp
