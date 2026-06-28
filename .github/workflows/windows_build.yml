@@ -71,5 +71,6 @@ jobs:
         with:
           name: azerothcore-windows
           path: |
-            build/bin/**
+            var/build/obj/bin/Release/*.exe
+            var/build/obj/bin/Release/*.dll
             env/dist/**
