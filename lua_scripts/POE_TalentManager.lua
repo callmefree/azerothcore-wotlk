@@ -107,7 +107,7 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
     if nodeId == 999 then
         local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
         for nid, _ in pairs(learned) do
-            POE_EffectHandler.RefreshAllStats(player)
+            POE_EffectHandler.RemoveEffects(player, nid)
             RemoveTalent(player, nid)
         end
         SetTalentPoints(player, 10)
@@ -116,7 +116,7 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
         return true
     end
 
-    -- 加点事务（使用 pcall 捕获异常）
+    -- 加点事务（pcall 保护）
     local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
     local can, reason = CanLearn(player, nodeId, learned)
 
@@ -138,14 +138,14 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
             error("天赋点不足（事务内检查）")
         end
         SetTalentPoints(player, newPoints)
-        POE_EffectHandler.RefreshAllStats(player)
+        POE_EffectHandler.ApplyEffects(player, nodeId)
     end)
 
     if not success then
         RemoveTalent(player, nodeId)
         SetTalentPoints(player, pointsBefore)
-        POE_EffectHandler.RefreshAllStats(player)
-        player:SendBroadcastMessage("|cffff4444[星盘] 加点失败，系统已自动回滚。错误: " .. tostring(err) .. "|r")
+        player:SendBroadcastMessage("|cffff4444[星盘] 加点失败，系统已自动回滚。|r")
+        print("[POE] 加点错误: " .. tostring(err))
     else
         player:SendBroadcastMessage("|cff00ff00[星盘] 已点亮节点: |r" .. node.name)
     end
@@ -154,15 +154,9 @@ local function OnGossipSelect(event, player, creature, sender, action, gossipId)
     return true
 end
 
--- 玩家登录时恢复已点效果
+-- 玩家登录时恢复已点光环
 local function OnPlayerLogin(event, player)
-    local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
-    local count = 0
-    for _, _ in pairs(learned) do count = count + 1 end
-    if count > 0 then
-        POE_EffectHandler.RefreshAllStats(player)
-        player:SendBroadcastMessage("|cff00ff00[星盘] 已恢复 " .. count .. " 个节点效果|r")
-    end
+    POE_EffectHandler.RestoreOnLogin(player)
 end
 
 -- ===== 注册事件 =====
