@@ -13,9 +13,12 @@
 -- ============================================================================
 -- Part A: world 库（节点定义、效果定义、关联表）
 -- ============================================================================
+USE `acore_world`;
 
 -- 1. 天赋节点表 (poe_talent_nodes)
-CREATE TABLE IF NOT EXISTS `poe_talent_nodes` (
+-- 先创建含完整 ENUM 的版本（包含 Phase 2 的 'skill' 类型）
+DROP TABLE IF EXISTS `poe_talent_nodes`;
+CREATE TABLE `poe_talent_nodes` (
   `node_id`     INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   `name`        VARCHAR(128)    NOT NULL DEFAULT '' COMMENT '节点显示名',
   `description` TEXT            COMMENT '节点效果描述',
@@ -25,13 +28,15 @@ CREATE TABLE IF NOT EXISTS `poe_talent_nodes` (
   `max_rank`    TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `cost`        TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '消耗天赋点数，起点为0',
   `connections` TEXT            COMMENT '相连node_id列表，逗号分隔',
-  `node_type`   ENUM('small','notable','keystone','start') NOT NULL DEFAULT 'small',
+  `node_type`   ENUM('small','notable','keystone','start','skill') NOT NULL DEFAULT 'small',
   `talent_group` VARCHAR(64)    DEFAULT NULL COMMENT '集群标签',
+  `class_mask`   INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '职业掩码(1=战士,2=圣骑,4=猎人,8=盗贼,16=牧师,32=死骑,64=萨满,128=法师,256=术士,512=小德,1024=武僧,2048=恶魔猎手)',
   PRIMARY KEY (`node_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 2. 天赋效果定义表 (poe_talent_effects)
-CREATE TABLE IF NOT EXISTS `poe_talent_effects` (
+DROP TABLE IF EXISTS `poe_talent_effects`;
+CREATE TABLE `poe_talent_effects` (
   `effect_id`   INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   `effect_name` VARCHAR(100)    DEFAULT NULL COMMENT '备注名',
   `script_name` VARCHAR(128)    NOT NULL COMMENT 'Lua函数名',
@@ -42,7 +47,8 @@ CREATE TABLE IF NOT EXISTS `poe_talent_effects` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 3. 节点-效果关联表 (poe_node_effect_binding)
-CREATE TABLE IF NOT EXISTS `poe_node_effect_binding` (
+DROP TABLE IF EXISTS `poe_node_effect_binding`;
+CREATE TABLE `poe_node_effect_binding` (
   `node_id`   INT UNSIGNED NOT NULL,
   `effect_id` INT UNSIGNED NOT NULL,
   PRIMARY KEY (`node_id`, `effect_id`)
@@ -72,27 +78,38 @@ ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`eff
 -- Part B: characters 库（玩家数据表 + 角色扩展字段 + NPC/物品模板）
 -- ⚠ 根据实际环境修改下一行的库名（AzerothCore 可能用 `acore_characters`）
 -- ============================================================================
-USE `characters`;
+USE `acore_characters`;
 
 -- 4. 角色已学天赋表 (character_poe_talents) — 必须在 characters 库
-CREATE TABLE IF NOT EXISTS `character_poe_talents` (
+DROP TABLE IF EXISTS `character_poe_talents`;
+CREATE TABLE `character_poe_talents` (
   `character_guid` INT UNSIGNED    NOT NULL,
   `node_id`        INT UNSIGNED    NOT NULL,
   `points_spent`   TINYINT UNSIGNED NOT NULL DEFAULT 1,
   PRIMARY KEY (`character_guid`, `node_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 5. 角色天赋点余额字段
-ALTER TABLE `characters` ADD COLUMN IF NOT EXISTS `poe_talent_points` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '可用天赋点数';
+-- 5. 角色天赋点余额字段（忽略重复列错误）
+SET @dbname = (SELECT DATABASE());
+SET @exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'characters' AND COLUMN_NAME = 'poe_talent_points');
+SET @sql = IF(@exists = 0, 'ALTER TABLE `characters` ADD COLUMN `poe_talent_points` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT ''可用天赋点数''', 'SELECT 1 AS ''already exists''');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- ============================================================================
--- Part C: characters 库 — NPC 200000 和物品 70000 模板
+-- Part C: world 库 — NPC 200000 和物品 70000 模板
 -- ============================================================================
+USE `acore_world`;
 
 -- 星盘导师 NPC（entry=200000）
-INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `display_id1`, `display_id2`, `display_id3`, `display_id4`, `AIName`, `ScriptName`)
-VALUES (200000, '星盘导师', '流放之路天赋系统', 80, 80, 35, 1, 3503, 0, 0, 0, '', '')
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `subname` = VALUES(`subname`), `display_id1` = VALUES(`display_id1`);
+INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `AIName`, `ScriptName`)
+VALUES (200000, '星盘导师', '流放之路天赋系统', 80, 80, 35, 1, '', '')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `subname` = VALUES(`subname`);
+
+-- 星盘导师模型
+REPLACE INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
+(200000, 0, 3503, 1, 1);
 
 -- 后悔石物品（entry=70000）
 INSERT INTO `item_template` (`entry`, `name`, `class`, `subclass`, `Quality`, `Flags`, `maxcount`, `stackable`, `spellid_1`, `spelltrigger_1`, `description`)
@@ -293,16 +310,6 @@ INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
 (64, 35),  (65, 38),
 (66, 40),  (67, 39),  (68, 39)
 ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`effect_id`);
-
--- ============================================================================
--- Phase 2 迁移：ENUM 扩展 + class_mask
--- ============================================================================
-
--- 添加 'skill' 到 node_type ENUM
-ALTER TABLE `poe_talent_nodes` MODIFY COLUMN `node_type` ENUM('small','notable','keystone','start','skill') NOT NULL DEFAULT 'small';
-
--- 添加 class_mask 列（职业掩码）
-ALTER TABLE `poe_talent_nodes` ADD COLUMN IF NOT EXISTS `class_mask` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '职业掩码(1=战士,2=圣骑,4=猎人,8=盗贼,16=牧师,32=死骑,64=萨满,128=法师,256=术士,512=小德,1024=武僧,2048=恶魔猎手)' AFTER `talent_group`;
 
 -- ============================================================================
 -- 完成
