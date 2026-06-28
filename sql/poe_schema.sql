@@ -142,6 +142,120 @@ INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
 ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`effect_id`);
 
 -- ============================================================================
+-- Phase 2 扩展：多职业星盘扩容
+-- ============================================================================
+
+-- === 战士扩展（class_mask=1）===
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(17, '致死打击', '学会致死打击技能', 3, -2, 2, '2', 'skill', 1),
+(18, '强化致死', '致死打击伤害提高10%', 4, -2, 1, '17', 'small', 1),
+(19, '旋风斩', '学会旋风斩技能', 3, 2, 2, '2', 'skill', 1),
+(20, '强化旋风斩', '旋风斩伤害提高5%', 4, 2, 1, '19', 'small', 1)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- === 盗贼线（class_mask=8）===
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(21, '敏捷起点', '盗贼的天赋起点', 0, 10, 0, '22', 'start', 8),
+(22, '敏捷+5', '增加5点敏捷', 1, 10, 1, '21,23', 'small', 8),
+(23, '敏捷+10', '增加10点敏捷', 2, 10, 1, '22', 'small', 8),
+(24, '邪恶攻击', '学会邪恶攻击技能', 3, 9, 2, '22', 'skill', 8),
+(25, '强化邪恶攻击', '邪恶攻击伤害提高5%', 4, 9, 1, '24', 'small', 8),
+(26, '背刺', '学会背刺技能', 3, 11, 2, '22', 'skill', 8),
+(27, '强化背刺', '背刺伤害提高5%', 4, 11, 1, '26', 'small', 8),
+(28, '潜行', '学会潜行技能', 5, 10, 2, '23', 'skill', 8),
+(29, '强化潜行', '潜行效果提高', 6, 10, 1, '28', 'small', 8),
+(30, '剔骨', '学会剔骨技能', 3, 13, 2, '22', 'skill', 8)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- === 牧师线（class_mask=16）===
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(31, '精神起点', '牧师的天赋起点', 0, 15, 0, '32', 'start', 16),
+(32, '精神+5', '增加5点精神', 1, 15, 1, '31,33', 'small', 16),
+(33, '精神+10', '增加10点精神', 2, 15, 1, '32', 'small', 16),
+(34, '治疗术', '学会治疗术技能', 3, 14, 2, '32', 'skill', 16),
+(35, '强化治疗术', '治疗术效果提高10%', 4, 14, 1, '34', 'small', 16),
+(36, '暗言术：痛', '学会暗言术：痛技能', 3, 16, 2, '32', 'skill', 16),
+(37, '暗影伤害+5%', '暗影法术伤害提高5%', 4, 16, 1, '36', 'small', 16),
+(38, '真言术：盾', '学会真言术：盾技能', 5, 15, 2, '33', 'skill', 16),
+(39, '强化护盾', '护盾吸收量提高10%', 6, 15, 1, '38', 'small', 16),
+(40, '快速治疗', '学会快速治疗技能', 3, 13, 2, '32', 'skill', 16)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- === 猎手线（class_mask=4）===
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(41, '远程起点', '猎人的天赋起点', 0, 20, 0, '42', 'start', 4),
+(42, '敏捷+5', '增加5点敏捷', 1, 20, 1, '41,43', 'small', 4),
+(43, '敏捷+10', '增加10点敏捷', 2, 20, 1, '42', 'small', 4),
+(44, '猎人印记', '学会猎人印记技能', 3, 19, 1, '42', 'skill', 4),
+(45, '强化印记', '印记使攻击强度提高', 4, 19, 1, '44', 'small', 4),
+(46, '毒蛇钉刺', '学会计能毒蛇钉刺', 3, 21, 2, '42', 'skill', 4),
+(47, '强化毒蛇', '毒蛇钉刺伤害提高10%', 4, 21, 1, '46', 'small', 4),
+(48, '稳固射击', '学会稳固射击技能', 5, 20, 2, '43', 'skill', 4),
+(49, '强化稳固', '稳固射击伤害提高5%', 6, 20, 1, '48', 'small', 4),
+(50, '多重射击', '学会多重射击技能', 3, 23, 2, '42', 'skill', 4)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- === 术士线（class_mask=256）===
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(51, '暗影起点', '术士的天赋起点', 0, 25, 0, '52', 'start', 256),
+(52, '智力+5', '增加5点智力', 1, 25, 1, '51,53', 'small', 256),
+(53, '智力+10', '增加10点智力', 2, 25, 1, '52', 'small', 256),
+(54, '暗影箭', '学会暗影箭技能', 3, 24, 2, '52', 'skill', 256),
+(55, '暗影伤害+5%', '暗影法术伤害提高5%', 4, 24, 1, '54', 'small', 256),
+(56, '腐蚀术', '学会腐蚀术技能', 3, 26, 2, '52', 'skill', 256),
+(57, '腐蚀增效', '腐蚀术伤害提高10%', 4, 26, 1, '56', 'small', 256),
+(58, '召唤小鬼', '学会召唤小鬼技能', 5, 25, 2, '53', 'skill', 256)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- === 扩展效果定义 ===
+INSERT INTO `poe_talent_effects` (`effect_id`, `effect_name`, `script_name`, `param1`, `param2`, `spell_id`) VALUES
+-- 战士技能
+(8,  'LearnSpell: 致死打击',  'TalentEffect_LearnSpell', 0, 0, 12294),
+(9,  'LearnSpell: 旋风斩',    'TalentEffect_LearnSpell', 0, 0, 1680),
+(10, 'ModDamagePercent: 致死+10%', 'TalentEffect_ModDamagePercent', 1, 10, 0),
+(11, 'ModDamagePercent: 旋风斩+5%', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+-- 盗贼技能
+(12, 'LearnSpell: 邪恶攻击',  'TalentEffect_LearnSpell', 0, 0, 1752),
+(13, 'LearnSpell: 背刺',      'TalentEffect_LearnSpell', 0, 0, 53),
+(14, 'LearnSpell: 潜行',      'TalentEffect_LearnSpell', 0, 0, 1784),
+(15, 'LearnSpell: 剔骨',      'TalentEffect_LearnSpell', 0, 0, 2098),
+(16, 'ModDamagePercent: 邪恶+5%', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+(17, 'ModDamagePercent: 背刺+5%', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+-- 牧师技能
+(18, 'LearnSpell: 治疗术',    'TalentEffect_LearnSpell', 0, 0, 2060),
+(19, 'LearnSpell: 暗言术痛',  'TalentEffect_LearnSpell', 0, 0, 589),
+(20, 'LearnSpell: 真言术盾',  'TalentEffect_LearnSpell', 0, 0, 17),
+(21, 'LearnSpell: 快速治疗',  'TalentEffect_LearnSpell', 0, 0, 2061),
+-- 猎人技能
+(22, 'LearnSpell: 猎人印记',  'TalentEffect_LearnSpell', 0, 0, 1130),
+(23, 'LearnSpell: 毒蛇钉刺',  'TalentEffect_LearnSpell', 0, 0, 1978),
+(24, 'LearnSpell: 稳固射击',  'TalentEffect_LearnSpell', 0, 0, 56641),
+(25, 'LearnSpell: 多重射击',  'TalentEffect_LearnSpell', 0, 0, 2643),
+-- 术士技能
+(26, 'LearnSpell: 暗影箭',    'TalentEffect_LearnSpell', 0, 0, 686),
+(27, 'LearnSpell: 腐蚀术',    'TalentEffect_LearnSpell', 0, 0, 172),
+(28, 'LearnSpell: 召唤小鬼',  'TalentEffect_LearnSpell', 0, 0, 688),
+-- 属性点（无 DBC 法术时直接修改属性）
+(29, '敏捷+5',   'TalentEffect_StatPlus', 3, 5,  0),
+(30, '敏捷+10',  'TalentEffect_StatPlus', 3, 10, 0),
+(31, '精神+5',   'TalentEffect_StatPlus', 6, 5,  0),
+(32, '精神+10',  'TalentEffect_StatPlus', 6, 10, 0)
+ON DUPLICATE KEY UPDATE `effect_name` = VALUES(`effect_name`), `script_name` = VALUES(`script_name`), `param1` = VALUES(`param1`), `param2` = VALUES(`param2`), `spell_id` = VALUES(`spell_id`);
+
+-- === 扩展绑定关系 ===
+INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
+(17, 8),   (18, 10),  (19, 9),   (20, 11),
+(22, 29),  (23, 30),  (24, 12),  (25, 16),
+(26, 13),  (27, 17),  (28, 14),  (30, 15),
+(32, 31),  (33, 32),  (34, 18),  (36, 19),
+(38, 20),  (40, 21),
+(42, 29),  (43, 30),  (44, 22),  (46, 23),
+(48, 24),  (50, 25),
+(52, 5),   (53, 5),   (54, 26),  (55, 6),
+(56, 27),  (58, 28)
+ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`effect_id`);
+
+-- ============================================================================
 -- Phase 2 迁移：ENUM 扩展 + class_mask
 -- ============================================================================
 

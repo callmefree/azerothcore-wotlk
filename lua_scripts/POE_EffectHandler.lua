@@ -35,19 +35,28 @@ function POE_EffectHandler.RemoveEffects(player, nodeId)
     end
 end
 
--- 通用光环效果
+-- 通用属性加成（支持 DBC 光环和直接修改两种模式）
 POE_EffectHandler.RegisterEffect("TalentEffect_StatPlus", function(player, e, isApply)
-    if e.spell_id == 0 then
-        print("[POE] 警告: 效果缺少 spell_id")
-        return
-    end
-    if isApply then
-        local success = player:AddAura(e.spell_id, player)
-        if not success then
-            print("[POE] 添加光环失败: spell_id=" .. e.spell_id)
+    if e.spell_id and e.spell_id > 0 then
+        -- v2 模式：DBC 隐藏光环（需手动创建 spell.dbc 条目）
+        if isApply then
+            local success = player:AddAura(e.spell_id, player)
+            if not success then
+                print("[POE] 添加光环失败: spell_id=" .. e.spell_id)
+            end
+        else
+            player:RemoveAura(e.spell_id)
         end
     else
-        player:RemoveAura(e.spell_id)
+        -- 回退模式：直接修改基础属性（无需 DBC）
+        local statId = e.param1  -- 1=STR, 2=AGI, 3=STA, 5=INT, 6=SPI
+        local amount = e.param2
+        local current = player:GetBaseStat(statId)
+        if isApply then
+            player:SetBaseStat(statId, current + amount)
+        else
+            player:SetBaseStat(statId, current - amount)
+        end
     end
 end)
 
