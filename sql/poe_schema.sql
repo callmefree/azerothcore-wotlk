@@ -88,6 +88,17 @@ INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
 ALTER TABLE `characters` ADD COLUMN IF NOT EXISTS `poe_talent_points` SMALLINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '可用天赋点数';
 
 -- ============================================================================
+-- Phase 1 v2 — 隐藏光环迁移（可选，推荐）
+-- ============================================================================
+
+-- 效果表增加 spell_id 列，用于绑定 DBC 被动光环法术
+ALTER TABLE `poe_talent_effects` ADD COLUMN IF NOT EXISTS `spell_id` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '光环法术ID（被动）' AFTER `param2`;
+
+-- 更新种子数据，绑定自定义 DBC 法术
+UPDATE `poe_talent_effects` SET `spell_id` = 50000 WHERE `effect_id` = 1;
+UPDATE `poe_talent_effects` SET `spell_id` = 50001 WHERE `effect_id` = 2;
+
+-- ============================================================================
 -- 执行方式
 -- ============================================================================
 -- 1. 登录 MySQL/MariaDB:
