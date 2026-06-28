@@ -1,59 +1,53 @@
 -- POE_EffectHandler.lua
--- 星盘效果执行器：注册、应用、移除效果
+-- 采用 "全局重算" 模式：每次变更时重新汇总所有节点加成
+-- 彻底解决 "移除顺序导致属性错误" 问题
 
 local POE_EffectHandler = {}
 local EffectRegistry = {}
 
--- 注册一个效果函数
 function POE_EffectHandler.RegisterEffect(name, func)
     EffectRegistry[name] = func
 end
 
--- 应用节点效果（正向）
+-- 核心：根据当前已激活节点，计算并应用所有属性变化
+function POE_EffectHandler.RefreshAllStats(player)
+    local guid = player:GetGUID()
+    local learned = POE_Data.LoadPlayerTalents(guid)
+    local statMods = {}
+
+    -- 1. 遍历所有已点节点，汇总效果
+    for nodeId, _ in pairs(learned) do
+        local effects = POE_Data.GetNodeEffects(nodeId)
+        for _, e in ipairs(effects) do
+            if e.script == "TalentEffect_StatPlus" then
+                local statId = e.param1
+                local amount = e.param2
+                statMods[statId] = (statMods[statId] or 0) + amount
+            end
+        end
+    end
+
+    -- 2. 将属性变动应用到角色身上（一次性覆盖）
+    for statId, totalBonus in pairs(statMods) do
+        local base = player:GetBaseStat(statId)
+        player:SetBaseStat(statId, base + totalBonus)
+    end
+end
+
+-- 兼容旧接口：调用 ApplyEffects 或 RemoveEffects 时，统一触发重算
 function POE_EffectHandler.ApplyEffects(player, nodeId)
-    local effects = POE_Data.GetNodeEffects(nodeId)
-    for _, e in ipairs(effects) do
-        local func = EffectRegistry[e.script]
-        if func then
-            func(player, e.param1, e.param2)
-        else
-            print("[POE] 警告: 未注册的效果脚本 " .. e.script)
-        end
-    end
+    POE_EffectHandler.RefreshAllStats(player)
+    player:SendBroadcastMessage("|cff00ff00[星盘] 节点效果已应用，属性已重算|r")
 end
 
--- 移除节点效果（参数取反）
 function POE_EffectHandler.RemoveEffects(player, nodeId)
-    local effects = POE_Data.GetNodeEffects(nodeId)
-    for _, e in ipairs(effects) do
-        local func = EffectRegistry[e.script]
-        if func then
-            func(player, e.param1, -e.param2) -- param2 取反
-        else
-            print("[POE] 警告: 未注册的效果脚本 " .. e.script)
-        end
-    end
+    POE_EffectHandler.RefreshAllStats(player)
+    player:SendBroadcastMessage("|cffff4444[星盘] 节点已移除，属性已重算|r")
 end
 
--- ===== 效果函数实现 =====
-
--- 通用属性加成效果（STAT_STRENGTH=1, STAT_AGILITY=2, STAT_STAMINA=3, STAT_INTELLECT=4, STAT_SPIRIT=5）
--- amount 为正数时加属性，负数时减属性
+-- 注册基础属性加成效果（保留以供查询，实际逻辑由 RefreshAllStats 统一处理）
 POE_EffectHandler.RegisterEffect("TalentEffect_StatPlus", function(player, statId, amount)
-    if amount == 0 then return end
-    local current = player:GetBaseStat(statId)
-    local newVal = current + amount
-    -- 防止负值
-    if newVal < 0 then newVal = 0 end
-    player:SetBaseStat(statId, newVal)
-    if amount > 0 then
-        player:SendBroadcastMessage("|cff00ff00[星盘] 属性 +" .. amount .. "|r")
-    else
-        player:SendBroadcastMessage("|cffff4444[星盘] 属性 " .. amount .. "|r")
-    end
+    -- 此函数不再直接修改属性，由 RefreshAllStats 统一处理
 end)
-
--- TODO: 后续迁移到隐藏光环系统（Player:AddAura / RemoveAura），
---       避免 ModifyStat/SetBaseStat 与其他系统叠加时产生误差。
 
 return POE_EffectHandler
