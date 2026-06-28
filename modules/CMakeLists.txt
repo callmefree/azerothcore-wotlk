@@ -278,9 +278,15 @@ add_library(modules STATIC
     ${PRIVATE_SOURCES_MODULES})
 
 # Suppress GCC 14 warnings-turned-errors in third-party module code
-if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_COMPILER_IS_GNUCXX)
   target_compile_options(modules PRIVATE
     -Wno-interference-size
+    -Wno-misleading-indentation
+    -Wno-array-bounds
+    -Wno-maybe-uninitialized)
+endif()
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(modules PRIVATE
     -Wno-misleading-indentation
     -Wno-array-bounds
     -Wno-maybe-uninitialized)
