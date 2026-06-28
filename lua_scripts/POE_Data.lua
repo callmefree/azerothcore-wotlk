@@ -14,23 +14,23 @@ function POE_Data.LoadAllNodes()
     POE_Data.NodeList = {}
     if nodeResult then
         repeat
-            local connStr = nodeResult:GetString("connections")
+            local connStr = nodeResult:GetString(8)       -- connections (col 8, 0-indexed)
             local connections = {}
             if connStr and connStr ~= "" then
                 for id in string.gmatch(connStr, "(%d+)") do
                     table.insert(connections, tonumber(id))
                 end
             end
-            local nodeId = nodeResult:GetUInt32("node_id")
+            local nodeId = nodeResult:GetUInt32(0)        -- node_id (col 0)
             POE_Data.Nodes[nodeId] = {
                 id = nodeId,
-                name = nodeResult:GetString("name"),
-                desc = nodeResult:GetString("description"),
-                cost = nodeResult:GetUInt8("cost"),
+                name = nodeResult:GetString(1),           -- name
+                desc = nodeResult:GetString(2),           -- description
+                cost = nodeResult:GetUInt8(7),            -- cost
                 connections = connections,
-                node_type = nodeResult:GetString("node_type"),
-                max_rank = nodeResult:GetUInt8("max_rank"),
-                class_mask = nodeResult:GetUInt32("class_mask") or 0
+                node_type = nodeResult:GetString(9),      -- node_type
+                max_rank = nodeResult:GetUInt8(6),        -- max_rank
+                class_mask = nodeResult:GetUInt32(10) or 0 -- class_mask
             }
             table.insert(POE_Data.NodeList, nodeId)
         until not nodeResult:NextRow()
@@ -42,11 +42,11 @@ function POE_Data.LoadAllEffects()
     POE_Data.Effects = {}
     if effectResult then
         repeat
-            POE_Data.Effects[effectResult:GetUInt32("effect_id")] = {
-                script = effectResult:GetString("script_name"),
-                param1 = effectResult:GetInt32("param1"),
-                param2 = effectResult:GetInt32("param2"),
-                spell_id = effectResult:GetUInt32("spell_id")
+            POE_Data.Effects[effectResult:GetUInt32(0)] = {        -- effect_id
+                script = effectResult:GetString(1),                 -- script_name
+                param1 = effectResult:GetInt32(2),                  -- param1
+                param2 = effectResult:GetInt32(3),                  -- param2
+                spell_id = effectResult:GetUInt32(4)                -- spell_id
             }
         until not effectResult:NextRow()
     end
@@ -57,8 +57,8 @@ function POE_Data.LoadAllBindings()
     POE_Data.Bindings = {}
     if bindResult then
         repeat
-            local nodeId = bindResult:GetUInt32("node_id")
-            local effectId = bindResult:GetUInt32("effect_id")
+            local nodeId = bindResult:GetUInt32(0)          -- node_id
+            local effectId = bindResult:GetUInt32(1)         -- effect_id
             if not POE_Data.Bindings[nodeId] then POE_Data.Bindings[nodeId] = {} end
             table.insert(POE_Data.Bindings[nodeId], effectId)
         until not bindResult:NextRow()
@@ -71,28 +71,12 @@ function POE_Data.LoadCache()
     POE_Data.LoadAllBindings()
 end
 
-function POE_Data.GetNodeData(nodeId)
-    return POE_Data.Nodes[nodeId]
-end
-
-function POE_Data.GetNodeEffects(nodeId)
-    local ids = POE_Data.Bindings[nodeId]
-    if not ids then return {} end
-    local effects = {}
-    for _, eId in ipairs(ids) do
-        if POE_Data.Effects[eId] then
-            table.insert(effects, POE_Data.Effects[eId])
-        end
-    end
-    return effects
-end
-
 function POE_Data.LoadPlayerTalents(guid)
     local result = CharDBQuery("SELECT node_id, points_spent FROM character_poe_talents WHERE character_guid = " .. guid)
     local learned = {}
     if result then
         repeat
-            learned[result:GetUInt32("node_id")] = result:GetUInt8("points_spent")
+            learned[result:GetUInt32(0)] = result:GetUInt8(1)
         until not result:NextRow()
     end
     return learned
@@ -100,7 +84,7 @@ end
 
 function POE_Data.GetTalentPoints(player)
     local result = CharDBQuery("SELECT poe_talent_points FROM characters WHERE guid = " .. player:GetGUID())
-    if result then return result:GetUInt16("poe_talent_points") end
+    if result then return result:GetUInt16(0) end
     return 0
 end
 
@@ -108,10 +92,3 @@ function POE_Data.SetTalentPoints(player, points)
     points = math.max(0, tonumber(points) or 0)
     CharDBExecute("UPDATE characters SET poe_talent_points = " .. points .. " WHERE guid = " .. player:GetGUID())
 end
-
-function POE_Data.ReloadCache()
-    POE_Data.LoadCache()
-    print("[POE] 星盘数据缓存已重载")
-end
-
-POE_Data.LoadCache()
