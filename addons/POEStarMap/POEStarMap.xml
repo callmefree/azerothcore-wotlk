@@ -1,0 +1,74 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+  <Script file="POEStarMap.lua"/>
+
+  <!-- 主容器 -->
+  <Frame name="POEStarMapFrame" parent="UIParent" hidden="true" toplevel="true">
+    <Size x="800" y="600"/>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\Tooltips\UI-Tooltip-Border">
+      <BackgroundInsets>
+        <AbsInset left="4" right="4" top="4" bottom="4"/>
+      </BackgroundInsets>
+      <TileSize val="16"/>
+      <EdgeSize val="16"/>
+      <TileEdges val="true"/>
+    </Backdrop>
+    <Layers>
+      <Layer level="ARTWORK">
+        <FontString name="POEStarMapTitle" inherits="GameFontNormalLarge">
+          <Anchors>
+            <Anchor point="TOP" relativeTo="POEStarMapFrame" relativePoint="TOP">
+              <Offset y="-10"/>
+            </Anchor>
+          </Anchors>
+        </FontString>
+        <FontString name="POEStarMapPoints" inherits="GameFontNormal">
+          <Anchors>
+            <Anchor point="TOP" relativeTo="POEStarMapFrame" relativePoint="TOP">
+              <Offset y="-35"/>
+            </Anchor>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+
+    <!-- 星盘节点容器（滚动） -->
+    <ScrollFrame name="POEStarMapScroll" parent="POEStarMapFrame">
+      <Size x="760" y="480"/>
+      <Anchors>
+        <Anchor point="TOP" relativeTo="POEStarMapFrame" relativePoint="TOP">
+          <Offset y="-55"/>
+        </Anchor>
+      </Anchors>
+      <ScrollChild>
+        <Frame name="POEStarMapNodes">
+          <Size x="2000" y="2000"/>
+        </Frame>
+      </ScrollChild>
+    </ScrollFrame>
+
+    <!-- 关闭按钮 -->
+    <Button name="POEStarMapClose" inherits="UIPanelButtonTemplate" text="关闭">
+      <Size x="80" y="22"/>
+      <Anchors>
+        <Anchor point="BOTTOM" relativeTo="POEStarMapFrame" relativePoint="BOTTOM">
+          <Offset y="15"/>
+        </Anchor>
+      </Anchors>
+      <Scripts>
+        <OnClick function="POEStarMap_Toggle"/>
+      </Scripts>
+    </Button>
+
+    <Scripts>
+      <OnLoad>
+        POEStarMap_OnLoad()
+      </OnLoad>
+      <OnEvent>
+        POEStarMap_OnEvent(event, arg1, arg2, arg3, arg4, arg5)
+      </OnEvent>
+    </Scripts>
+  </Frame>
+</Ui>

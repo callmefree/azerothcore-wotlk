@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: POE 星盘
+## Notes: 流放艾泽拉斯天赋星盘可视化
+## Author: callmefree
+## Version: 1.0
+## SavedVariables: POEStarMapDB
+
+POEStarMap.xml

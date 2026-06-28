@@ -90,6 +90,12 @@ local function CanLearn(player, nodeId, learnedTalents)
     return true, ""
 end
 
+-- 导出为全局函数，供 POE_AddonComm 调用
+POE_TalentManager = {}
+POE_TalentManager.CanLearn = CanLearn
+POE_TalentManager.SaveTalent = SaveTalent
+POE_TalentManager.RemoveTalent = RemoveTalent
+
 -- ===== Gossip 菜单 =====
 
 local function OpenTalentMenu(player)
