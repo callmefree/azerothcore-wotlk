@@ -77,13 +77,24 @@ end)
 
 POE_EffectHandler.PlayerMods = {}  -- guid -> {schoolMods={}, igniteChance=0}
 
--- 伤害百分比修正（param1=学派掩码, param2=百分比）
-POE_EffectHandler.RegisterEffect("TalentEffect_ModDamagePercent", function(player, e, isApply)
+-- 初始化/获取玩家修饰表
+function POE_EffectHandler.GetMods(player)
     local guid = player:GetGUID()
     if not POE_EffectHandler.PlayerMods[guid] then
-        POE_EffectHandler.PlayerMods[guid] = { schoolMods = {}, igniteChance = 0 }
+        POE_EffectHandler.PlayerMods[guid] = {
+            schoolMods = {},
+            igniteChance = 0,
+            onKillBuffs = {},
+            moveSpeedPct = 0,
+            castSpeedPct = 0,
+        }
     end
-    local mods = POE_EffectHandler.PlayerMods[guid]
+    return POE_EffectHandler.PlayerMods[guid]
+end
+
+-- 伤害百分比修正（param1=学派ID, param2=百分比）
+POE_EffectHandler.RegisterEffect("TalentEffect_ModDamagePercent", function(player, e, isApply)
+    local mods = POE_EffectHandler.GetMods(player)
     local school = e.param1
     local pct = e.param2
     if isApply then
@@ -94,52 +105,41 @@ POE_EffectHandler.RegisterEffect("TalentEffect_ModDamagePercent", function(playe
     end
 end)
 
--- 点燃几率（param1=几率百分比, param2=预留）
+-- 点燃几率（param1=几率百分比）
 POE_EffectHandler.RegisterEffect("TalentEffect_IgniteChance", function(player, e, isApply)
-    local guid = player:GetGUID()
-    if not POE_EffectHandler.PlayerMods[guid] then
-        POE_EffectHandler.PlayerMods[guid] = { schoolMods = {}, igniteChance = 0 }
-    end
+    local mods = POE_EffectHandler.GetMods(player)
     if isApply then
-        POE_EffectHandler.PlayerMods[guid].igniteChance = (POE_EffectHandler.PlayerMods[guid].igniteChance or 0) + e.param1
+        mods.igniteChance = (mods.igniteChance or 0) + e.param1
     else
-        POE_EffectHandler.PlayerMods[guid].igniteChance = math.max(0, (POE_EffectHandler.PlayerMods[guid].igniteChance or 0) - e.param1)
+        mods.igniteChance = math.max(0, (mods.igniteChance or 0) - e.param1)
     end
 end)
 
--- 玩家造成伤害事件 — 应用伤害修正
-local function OnDamageDealt(event, player, victim, damage, damageType, school)
-    local guid = player:GetGUID()
-    local mods = POE_EffectHandler.PlayerMods[guid]
-    if not mods then return damage end
-
-    local modified = damage
-    -- 各学派伤害修正（school 是学派掩码，param1 是单个学派ID）
-    for s, pct in pairs(mods.schoolMods) do
-        modified = modified + math.floor(damage * pct / 100)
+-- 击杀触发：击杀怪物时概率获得增益（param1=法术ID, param2=几率%）
+POE_EffectHandler.RegisterEffect("TalentEffect_OnKillTrigger", function(player, e, isApply)
+    local mods = POE_EffectHandler.GetMods(player)
+    if not mods.onKillBuffs then mods.onKillBuffs = {} end
+    if isApply then
+        table.insert(mods.onKillBuffs, { spellId = e.param1, chance = e.param2 })
     end
+end)
 
-    -- 点燃触发（仅对法术伤害生效）
-    if mods.igniteChance and mods.igniteChance > 0 and school > 0 then
-        if math.random(1, 100) <= mods.igniteChance then
-            -- 对目标施加点燃 DOT
-            victim:SetAuraStack(23267, victim, 1)
-        end
+-- 移动速度修正（param1=百分比）
+POE_EffectHandler.RegisterEffect("TalentEffect_ModMoveSpeed", function(player, e, isApply)
+    local mods = POE_EffectHandler.GetMods(player)
+    local pct = e.param1 or 5
+    if isApply then
+        mods.moveSpeedPct = (mods.moveSpeedPct or 0) + pct
+    else
+        mods.moveSpeedPct = math.max(0, (mods.moveSpeedPct or 0) - pct)
     end
+    -- 应用移动速度改变
+    local currentSpeed = player:GetSpeed(1)  -- 1 = RUN
+    local rate = player:GetSpeedRate(1)
+    player:SetSpeedRate(1, rate + (isApply and pct / 100 or -pct / 100))
+end)
 
-    return modified
-end
-
--- 玩家登出时清理缓存
-local function OnPlayerLogout(event, player)
-    POE_EffectHandler.PlayerMods[player:GetGUID()] = nil
-end
-
--- 注册全局事件
-RegisterPlayerEvent(7, OnDamageDealt)   -- 7 = PLAYER_EVENT_ON_DAMAGE_DEALT
-RegisterPlayerEvent(4, OnPlayerLogout)  -- 4 = PLAYER_EVENT_ON_LOGOUT
-
--- 登录恢复：遍历已点节点，统一应用光环
+-- 登录恢复：遍历已点节点，统一应用所有效果
 function POE_EffectHandler.RestoreOnLogin(player)
     local learned = POE_Data.LoadPlayerTalents(player:GetGUID())
     local count = 0

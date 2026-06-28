@@ -256,6 +256,45 @@ INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
 ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`effect_id`);
 
 -- ============================================================================
+-- Phase 2 深化：法师冰霜/奥术分支 + 击杀触发效果 + notable 节点
+-- ============================================================================
+
+-- 法师冰霜/奥术分支（class_mask=128）
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`, `class_mask`) VALUES
+(61, '寒冰箭', '学会寒冰箭技能', 3, 7, 2, '13', 'skill', 128),
+(62, '冰霜伤害+5%', '冰霜法术伤害提高5%', 4, 7, 1, '61', 'small', 128),
+(63, '霜甲术', '学会霜甲术技能', 4, 8, 1, '61', 'skill', 128),
+(64, '奥术智慧', '学会奥术智慧技能', 3, 3, 1, '12', 'skill', 128),
+(65, '奥术伤害+5%', '奥术法术伤害提高5%', 4, 3, 1, '64', 'small', 128)
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`), `class_mask` = VALUES(`class_mask`);
+
+-- Notable / Keystone 节点（跨职业通用）
+INSERT INTO `poe_talent_nodes` (`node_id`, `name`, `description`, `pos_x`, `pos_y`, `cost`, `connections`, `node_type`) VALUES
+(66, '狂热', '击杀怪物后20%几率获得30%攻速加成，持续4秒',    5, 0, 2, '9,10', 'notable'),
+(67, '精准打击', '所有伤害提高8%',                            5, 5, 2, '15,16', 'notable'),
+(68, '法术凝聚', '法术伤害提高10%，但施法速度降低5%',       5, 10, 3, '62,63', 'keystone')
+ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `description` = VALUES(`description`), `cost` = VALUES(`cost`), `connections` = VALUES(`connections`), `node_type` = VALUES(`node_type`);
+
+-- 深化效果定义
+INSERT INTO `poe_talent_effects` (`effect_id`, `effect_name`, `script_name`, `param1`, `param2`, `spell_id`) VALUES
+(33, 'LearnSpell: 寒冰箭',  'TalentEffect_LearnSpell', 0, 0, 116),
+(34, 'LearnSpell: 霜甲术',  'TalentEffect_LearnSpell', 0, 0, 7302),
+(35, 'LearnSpell: 奥术智慧','TalentEffect_LearnSpell', 0, 0, 1459),
+(36, 'ModDamagePercent: 冰霜+5%', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+(37, 'ModDamagePercent: 冰霜物理(冰霜)', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+(38, 'ModDamagePercent: 奥术+5%', 'TalentEffect_ModDamagePercent', 1, 5, 0),
+(39, 'ModDamagePercent: 全伤害+8%', 'TalentEffect_ModDamagePercent', 0, 8, 0),
+(40, '击杀触发: 狂热', 'TalentEffect_OnKillTrigger', 23267, 20, 0)
+ON DUPLICATE KEY UPDATE `effect_name` = VALUES(`effect_name`), `script_name` = VALUES(`script_name`), `param1` = VALUES(`param1`), `param2` = VALUES(`param2`), `spell_id` = VALUES(`spell_id`);
+
+-- 深化绑定关系
+INSERT INTO `poe_node_effect_binding` (`node_id`, `effect_id`) VALUES
+(61, 33),  (62, 36),  (63, 34),
+(64, 35),  (65, 38),
+(66, 40),  (67, 39),  (68, 39)
+ON DUPLICATE KEY UPDATE `node_id` = VALUES(`node_id`), `effect_id` = VALUES(`effect_id`);
+
+-- ============================================================================
 -- Phase 2 迁移：ENUM 扩展 + class_mask
 -- ============================================================================
 

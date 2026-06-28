@@ -205,6 +205,15 @@ local function OnPlayerLogin(event, player)
     POE_EffectHandler.RestoreOnLogin(player)
 end
 
+-- 玩家升级时自动获得天赋点
+local function OnPlayerLevelUp(event, player, oldLevel)
+    local points = oldLevel or player:GetLevel() - 1
+    -- 每级获得1点天赋，累计
+    local current = GetTalentPoints(player)
+    SetTalentPoints(player, current + 1)
+    player:SendBroadcastMessage("|cff00ff00[星盘] 升级奖励：获得1点天赋（当前: " .. (current + 1) .. "）|r")
+end
+
 -- ===== GM 命令（合并分发器）=====
 
 local function OnCommand(event, player, command)
@@ -238,4 +247,5 @@ end
 RegisterCreatureGossipEvent(NPC_ENTRY, 1, OnGossipHello)
 RegisterCreatureGossipEvent(NPC_ENTRY, 2, OnGossipSelect)
 RegisterPlayerEvent(3, OnPlayerLogin)
+RegisterPlayerEvent(12, OnPlayerLevelUp)  -- 12 = PLAYER_EVENT_ON_LEVEL_CHANGE
 RegisterPlayerEvent(42, OnCommand)
