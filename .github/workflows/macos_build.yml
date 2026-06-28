@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'phase-1-talent-demo'
   pull_request:
     types:
       - labeled
