@@ -72,8 +72,16 @@ jobs:
         shell: bash
         run: |
           BINDIR="var/build/obj/bin/Release"
-          # Copy OpenSSL DLLs from Chocolatey install
-          find /c/Program\ Files/OpenSSL* /c/ProgramData/chocolatey -name "libcrypto-4-x64.dll" -o -name "libssl-4-x64.dll" 2>/dev/null | while read f; do
+          # Copy ALL OpenSSL DLLs including legacy provider
+          OPENSSL_DIR=$(find /c/Program\ Files/OpenSSL* -maxdepth 0 -type d 2>/dev/null | head -1)
+          if [ -n "$OPENSSL_DIR" ]; then
+            echo "Found OpenSSL at: $OPENSSL_DIR"
+            find "$OPENSSL_DIR" -name "*.dll" | while read f; do
+              cp -v "$f" "$BINDIR/" || true
+            done
+          fi
+          # Also search Chocolatey OpenSSL
+          find /c/ProgramData/chocolatey/lib/openssl -name "*.dll" 2>/dev/null | while read f; do
             cp -v "$f" "$BINDIR/" || true
           done
           # Copy MySQL DLL from Chocolatey install
