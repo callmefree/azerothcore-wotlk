@@ -33,7 +33,7 @@ jobs:
     if: |
       (github.repository == 'azerothcore/azerothcore-wotlk' || github.repository_owner == 'callmefree')
       && !github.event.pull_request.draft
-      && (github.ref == 'refs/heads/master' || contains(github.event.pull_request.labels.*.name, 'run-build') || github.event.label.name == 'run-build')
+      && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/phase-1-talent-demo' || contains(github.event.pull_request.labels.*.name, 'run-build') || github.event.label.name == 'run-build')
     steps:
       - uses: actions/checkout@v4
       - name: ccache
@@ -49,3 +49,9 @@ jobs:
         run: |
           export CTOOLS_BUILD=all
           ./acore.sh compiler build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: azerothcore-windows
+          path: |
+            **/build/bin/**
