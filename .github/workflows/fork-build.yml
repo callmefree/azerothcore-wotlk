@@ -23,7 +23,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  # Linux 编译验证
+  linux-build:
     strategy:
       fail-fast: true
       matrix:
@@ -33,7 +34,7 @@ jobs:
               CC: clang-18
               CXX: clang++-18
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }}-${{ matrix.compiler.CC }}-modules
+    name: ${{ matrix.os }}-modules
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,3 +49,50 @@ jobs:
           pch: false
           maxerrors: 0
           keepgoing: true
+
+  # Windows 编译 + 产出服务端文件
+  windows-build:
+    runs-on: windows-latest
+    name: windows-server
+    env:
+      BOOST_ROOT: C:\local\boost_1_87_0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Configure OS
+        shell: bash
+        env:
+          CONTINUOUS_INTEGRATION: true
+        run: |
+          ./acore.sh install-deps
+
+      - name: Build
+        shell: bash
+        run: |
+          export CTOOLS_BUILD=all
+          ./acore.sh compiler build
+
+      - name: Install server files
+        shell: bash
+        run: |
+          mkdir -p server
+          cd build
+          cmake --install . --prefix "${{ github.workspace }}/server"
+
+      - name: Copy config files
+        shell: bash
+        run: |
+          cp -v env/dist/etc/*.conf.dist server/etc/ 2>/dev/null || true
+          cp -v server/etc/authserver.conf.dist server/etc/authserver.conf 2>/dev/null || true
+          cp -v server/etc/worldserver.conf.dist server/etc/worldserver.conf 2>/dev/null || true
+
+      - name: Upload server artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: azerothcore-server-windows
+          path: |
+            server/
+          retention-days: 7
