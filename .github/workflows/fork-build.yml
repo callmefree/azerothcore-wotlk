@@ -67,10 +67,19 @@ jobs:
         env:
           CONTINUOUS_INTEGRATION: true
         run: |
-          # GitHub Actions Windows runner already has VS2022 + Boost.
-          # Just install MySQL dev libs.
-          choco install mysql --no-progress -y 2>&1 || true
-          echo "Dependencies ready"
+          choco install boost-msvc-emp —no-progress -y 2>&1 || true
+          choco install mysql —no-progress -y 2>&1 || true
+          # 查找 Boost 安装路径
+          BOOST_DIR=$(find /c/local /c/ProgramData/chocolatey /c/Program\ Files -name "boost*" -type d 2>/dev/null | grep -i "boost_1_7" | head -1)
+          if [ -n "$BOOST_DIR" ]; then
+            echo "BOOST_ROOT=$BOOST_DIR" >> $GITHUB_ENV
+            echo "Boost found at: $BOOST_DIR"
+          else
+            echo "Boost not found via choco, trying manual install..."
+            curl -sL "https://github.com/azerothcore/boost/releases/download/vcpkg-latest/boost_1_87_0.zip" -o /tmp/boost.zip
+            unzip -q /tmp/boost.zip -d /c/local/
+            echo "BOOST_ROOT=C:\\local\\boost_1_87_0" >> $GITHUB_ENV
+          fi
 
       - name: Build
         shell: bash
