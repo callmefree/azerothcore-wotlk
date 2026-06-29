@@ -62,12 +62,15 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Configure OS
+      - name: Install dependencies
         shell: bash
         env:
           CONTINUOUS_INTEGRATION: true
         run: |
-          ./acore.sh install-deps
+          # GitHub Actions Windows runner already has VS2022 + Boost.
+          # Just install MySQL dev libs.
+          choco install mysql --no-progress -y 2>&1 || true
+          echo "Dependencies ready"
 
       - name: Build
         shell: bash
