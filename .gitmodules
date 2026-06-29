@@ -1,0 +1,18 @@
+[submodule "modules/echoes-of-the-worldsoul"]
+	path = modules/echoes-of-the-worldsoul
+	url = https://github.com/callmefree/echoes-of-the-worldsoul.git
+[submodule "modules/mod-attunement-plus"]
+	path = modules/mod-attunement-plus
+	url = https://github.com/callmefree/mod-attunement-plus.git
+[submodule "modules/mod-autotarget"]
+	path = modules/mod-autotarget
+	url = https://github.com/callmefree/mod-autotarget.git
+[submodule "modules/mod-dynamic-quest-plus"]
+	path = modules/mod-dynamic-quest-plus
+	url = https://github.com/callmefree/mod-dynamic-quest-plus.git
+[submodule "modules/mod-solo-raids"]
+	path = modules/mod-solo-raids
+	url = https://github.com/callmefree/mod-solo-raids.git
+[submodule "modules/mod-npc-chat-llm"]
+	path = modules/mod-npc-chat-llm
+	url = https://github.com/callmefree/mod-npc-chat-llm.git
