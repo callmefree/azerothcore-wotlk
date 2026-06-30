@@ -92,24 +92,41 @@ jobs:
           export CTOOLS_BUILD=all
           ./acore.sh compiler build
 
-      - name: Install server files
+      - name: Collect server binaries
         shell: bash
         run: |
-          mkdir -p server
-          cd build
-          cmake --install . --prefix "${{ github.workspace }}/server"
+          mkdir -p server/bin server/etc server/data
+          # Find compiled server binaries
+          find . -name "authserver.exe" -o -name "worldserver.exe" 2>/dev/null | while read f; do
+            cp -v "$f" server/bin/ 2>/dev/null || true
+          done
+          # Find all DLLs
+          find . -name "*.dll" -path "*/bin/*" 2>/dev/null | while read f; do
+            cp -v "$f" server/bin/ 2>/dev/null || true
+          done
+          echo "Server files collected:"
+          ls -la server/bin/ 2>/dev/null | head -20
 
       - name: Copy config files
         shell: bash
         run: |
-          cp -v env/dist/etc/*.conf.dist server/etc/ 2>/dev/null || true
-          cp -v server/etc/authserver.conf.dist server/etc/authserver.conf 2>/dev/null || true
-          cp -v server/etc/worldserver.conf.dist server/etc/worldserver.conf 2>/dev/null || true
+          # Find and copy dist configs
+          find . -name "*.conf.dist" -not -path "./.git/*" 2>/dev/null | head -20 | while read f; do
+            cp -v "$f" server/etc/ 2>/dev/null || true
+          done
+          # Rename .conf.dist to .conf for defaults
+          for f in server/etc/*.conf.dist; do
+            base="${f%.dist}"
+            [ -f "$f" ] && cp -v "$f" "$base" 2>/dev/null || true
+          done
+          echo "Config files:"
+          ls server/etc/ 2>/dev/null | head -10
 
       - name: Upload server artifacts
         uses: actions/upload-artifact@v4
         with:
           name: azerothcore-server-windows
           path: |
-            server/
+            server/bin/
+            server/etc/
           retention-days: 7
