@@ -4,6 +4,6 @@
 [submodule "modules/mod-attunement-plus"]
 	path = modules/mod-attunement-plus
 	url = https://github.com/callmefree/mod-attunement-plus.git
-[submodule "modules/mod-eluna"]
-	path = modules/mod-eluna
-	url = https://github.com/callmefree/mod-eluna.git
+[submodule "modules/mod-ale"]
+	path = modules/mod-ale
+	url = https://github.com/callmefree/mod-ale.git
