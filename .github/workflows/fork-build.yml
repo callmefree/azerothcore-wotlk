@@ -67,18 +67,23 @@ jobs:
         env:
           CONTINUOUS_INTEGRATION: true
         run: |
+          # Install Boost and MySQL via choco (VS is pre-installed on runner)
+          choco install --no-progress --skip-checksums -y cmake.install --installargs 'ADD_CMAKE_TO_PATH=System' 2>&1 || true
           choco install --no-progress --skip-checksums -y boost-msvc-14.3 --force --version=1.87.0 2>&1 || true
+          choco install --no-progress --skip-checksums -y openssl --force --version=3.6.2 2>&1 || true
           choco install --no-progress --skip-checksums -y mysql --force --version=8.4.9 2>&1 || true
-          # 查找 Boost 安装路径
-          BOOST_DIR=$(find /c/local /c/ProgramData/chocolatey /c/Program\ Files -name "boost*" -type d 2>/dev/null | grep -i "boost_1_7" | head -1)
+
+          # Find boost install path (choco installs to ProgramData/chocolatey/lib)
+          BOOST_DIR=$(find /c/ProgramData/chocolatey/lib/boost-msvc-14.3 -name "boost*" -type d -maxdepth 3 2>/dev/null | head -1)
           if [ -n "$BOOST_DIR" ]; then
             echo "BOOST_ROOT=$BOOST_DIR" >> $GITHUB_ENV
-            echo "Boost found at: $BOOST_DIR"
-          else
-            echo "Boost not found via choco, trying manual install..."
-            curl -sL "https://github.com/azerothcore/boost/releases/download/vcpkg-latest/boost_1_87_0.zip" -o /tmp/boost.zip
-            unzip -q /tmp/boost.zip -d /c/local/
-            echo "BOOST_ROOT=C:\\local\\boost_1_87_0" >> $GITHUB_ENV
+            echo "Boost root set to: $BOOST_DIR"
+          fi
+          # Also try common install locations
+          BOOST_DIR2=$(find /c/local -maxdepth 2 -name "boost*" -type d 2>/dev/null | head -1)
+          if [ -n "$BOOST_DIR2" ]; then
+            echo "BOOST_ROOT=$BOOST_DIR2" >> $GITHUB_ENV
+            echo "Boost root set to: $BOOST_DIR2"
           fi
 
       - name: Build
