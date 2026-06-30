@@ -70,7 +70,7 @@ jobs:
           # Install Boost and MySQL via choco (VS is pre-installed on runner)
           choco install --no-progress --skip-checksums -y cmake.install --installargs 'ADD_CMAKE_TO_PATH=System' 2>&1 || true
           choco install --no-progress --skip-checksums -y boost-msvc-14.3 --force --version=1.87.0 2>&1 || true
-          choco install --no-progress --skip-checksums -y openssl --force --version=3.6.2 2>&1 || true
+          choco install --no-progress --skip-checksums -y openssl --force 2>&1 || true
           choco install --no-progress --skip-checksums -y mysql --force --version=8.4.9 2>&1 || true
 
           # Find boost install path (choco installs to ProgramData/chocolatey/lib)
