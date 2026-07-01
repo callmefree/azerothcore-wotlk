@@ -29,7 +29,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      # Fetch modules + configs from acoremods repo only (patches already applied in branch)
       - uses: actions/checkout@v4
         with:
           repository: callmefree/acoremods
@@ -43,9 +42,8 @@ jobs:
             name=$(basename "$mod")
             [ -d "$mod" ] || continue
             cp -r "$mod" "modules/$name"
-            echo "  Copied: $name"
+            echo "Copied: $name"
           done
-          echo "=== Modules ==="
           ls modules/ | grep '^mod-'
 
       - name: Copy module configs
@@ -65,13 +63,31 @@ jobs:
           choco install --no-progress --skip-checksums -y mysql --version=8.4.9 2>&1 || true
 
       - name: Build
+        id: build
         shell: bash
         run: |
           export CTOOLS_BUILD=all
           export CONTINUOUS_INTEGRATION=true
-          ./acore.sh compiler build
+          # Capture stderr to a file for artifact upload
+          ./acore.sh compiler build 2>&1 | tee build.log
+          EXIT=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT" >> $GITHUB_OUTPUT
+          exit $EXIT
+        continue-on-error: true
+
+      # Always save build log so we can read it even without GitHub login
+      - name: Save build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            build.log
+            **/*.rej
+          retention-days: 3
 
       - name: Collect binaries
+        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
           mkdir -p server/bin
@@ -84,6 +100,7 @@ jobs:
           ls -la server/bin/ 2>/dev/null || echo "(none)"
 
       - name: Collect configs
+        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
           mkdir -p server/etc
@@ -93,13 +110,15 @@ jobs:
           ls server/etc/ 2>/dev/null
 
       - name: Collect lua_scripts
+        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
           if [ -d "data/lua_scripts" ]; then
             mkdir -p server/data && cp -r data/lua_scripts server/data/
           fi
 
-      - name: Upload artifacts
+      - name: Upload server artifacts
+        if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
           name: azerothcore-acoremods-windows
@@ -108,3 +127,8 @@ jobs:
             server/etc/
             server/data/
           retention-days: 7
+
+      - name: Fail if build failed
+        if: steps.build.outputs.exit_code != '0'
+        shell: bash
+        run: exit 1
