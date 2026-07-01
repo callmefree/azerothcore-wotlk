@@ -2,8 +2,7 @@ name: acoremods-build
 
 on:
   push:
-    branches:
-      - 'feature/acoremods'
+    branches: [ 'feature/acoremods' ]
   workflow_dispatch:
     inputs:
       acoremods_branch:
@@ -26,8 +25,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+        with: { fetch-depth: 1 }
 
       - uses: actions/checkout@v4
         with:
@@ -63,62 +61,46 @@ jobs:
           choco install --no-progress --skip-checksums -y mysql --version=8.4.9 2>&1 || true
 
       - name: Build
-        id: build
         shell: bash
         run: |
           export CTOOLS_BUILD=all
           export CONTINUOUS_INTEGRATION=true
-          # Capture stderr to a file for artifact upload
           ./acore.sh compiler build 2>&1 | tee build.log
           EXIT=${PIPESTATUS[0]}
-          echo "exit_code=$EXIT" >> $GITHUB_OUTPUT
-          exit $EXIT
-        continue-on-error: true
-
-      # Always save build log so we can read it even without GitHub login
-      - name: Save build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: |
-            build.log
-            **/*.rej
-          retention-days: 3
+          echo ""
+          echo "=== TAIL OF BUILD LOG (last 300 lines) ==="
+          tail -300 build.log
+          echo "=== END ==="
+          if [ $EXIT -ne 0 ]; then
+            # Show errors
+            echo ""
+            echo "=== EXTRACTED ERRORS ==="
+            grep -i "error[: ]" build.log | tail -40 || true
+            echo "=== END ERRORS ==="
+            exit 1
+          fi
 
       - name: Collect binaries
-        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
           mkdir -p server/bin
-          find . -name "authserver.exe" -o -name "worldserver.exe" 2>/dev/null | while read f; do
-            cp -v "$f" server/bin/ 2>/dev/null || true
-          done
-          find . -name "*.dll" -path "*/bin/*" 2>/dev/null | while read f; do
-            cp -v "$f" server/bin/ 2>/dev/null || true
-          done
-          ls -la server/bin/ 2>/dev/null || echo "(none)"
+          find . \( -name "authserver.exe" -o -name "worldserver.exe" \) -print0 2>/dev/null | xargs -0 -I{} cp -v "{}" server/bin/ 2>/dev/null || true
+          find . -name "*.dll" -path "*/bin/*" -print0 2>/dev/null | xargs -0 -I{} cp -v "{}" server/bin/ 2>/dev/null || true
+          ls -la server/bin/ 2>/dev/null || echo "(no binaries)"
 
       - name: Collect configs
-        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
           mkdir -p server/etc
-          find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" 2>/dev/null | while read f; do
-            cp -v "$f" server/etc/ 2>/dev/null || true
-          done
+          find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" -print0 2>/dev/null | xargs -0 -I{} cp -v "{}" server/etc/ 2>/dev/null || true
           ls server/etc/ 2>/dev/null
 
       - name: Collect lua_scripts
-        if: steps.build.outputs.exit_code == '0'
         shell: bash
         run: |
-          if [ -d "data/lua_scripts" ]; then
-            mkdir -p server/data && cp -r data/lua_scripts server/data/
-          fi
+          [ -d "data/lua_scripts" ] && { mkdir -p server/data && cp -r data/lua_scripts server/data/; }
 
       - name: Upload server artifacts
-        if: steps.build.outputs.exit_code == '0'
         uses: actions/upload-artifact@v4
         with:
           name: azerothcore-acoremods-windows
@@ -127,8 +109,3 @@ jobs:
             server/etc/
             server/data/
           retention-days: 7
-
-      - name: Fail if build failed
-        if: steps.build.outputs.exit_code != '0'
-        shell: bash
-        run: exit 1
