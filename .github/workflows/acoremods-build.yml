@@ -1,0 +1,136 @@
+name: acoremods-build
+
+on:
+  push:
+    branches:
+      - 'feature/acoremods'
+  workflow_dispatch:
+    inputs:
+      acoremods_branch:
+        description: 'acoremods branch to use'
+        required: true
+        default: 'main'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    name: windows-acoremods
+
+    steps:
+      # Step 1: Checkout this AC repo
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Step 2: Checkout acoremods for patches and modules
+      - uses: actions/checkout@v4
+        with:
+          repository: callmefree/acoremods
+          ref: ${{ github.event.inputs.acoremods_branch || 'main' }}
+          path: modules-src
+
+      # Step 3: Apply core patches
+      - name: Apply core patches
+        shell: bash
+        run: |
+          set -e
+          PATCH=modules-src/core-patches/acore-core-hooks.patch
+          echo "=== Attempting git apply --3way ==="
+          if git apply --3way "$PATCH" 2>&1; then
+            echo "SUCCESS: Patch applied with 3-way merge"
+          elif git apply --reject "$PATCH" 2>&1; then
+            echo "FAIL: Patch failed, reject files:"
+            find . -name "*.rej" | while read f; do echo "--- $f ---"; cat "$f"; done
+            exit 1
+          else
+            echo "FATAL: Patch application failed completely"
+            exit 1
+          fi
+
+      # Step 4: Copy modules into AC modules directory
+      - name: Copy modules
+        shell: bash
+        run: |
+          for mod in modules-src/mod-*; do
+            name=$(basename "$mod")
+            if [ -d "$mod" ] && [ "$name" != "modules-src" ]; then
+              cp -r "$mod" "modules/$name"
+              echo "Copied: $name"
+            fi
+          done
+          echo "=== Installed modules ==="
+          ls modules/ | grep '^mod-'
+
+      # Step 5: Install dependencies (Boost, MySQL, OpenSSL)
+      - name: Install dependencies
+        shell: bash
+        run: |
+          choco install --no-progress --skip-checksums -y cmake.install --installargs 'ADD_CMAKE_TO_PATH=System' 2>&1 || true
+          choco install --no-progress --skip-checksums -y boost-msvc-14.3 --version=1.87.0 2>&1 || true
+          choco install --no-progress --skip-checksums -y openssl 2>&1 || true
+          choco install --no-progress --skip-checksums -y mysql --version=8.4.9 2>&1 || true
+
+      # Step 6: Build using AzerothCore build script
+      - name: Build
+        shell: bash
+        run: |
+          export CTOOLS_BUILD=all
+          export CONTINUOUS_INTEGRATION=true
+          ./acore.sh compiler build
+
+      # Step 7: Collect server binaries
+      - name: Collect server binaries
+        shell: bash
+        run: |
+          mkdir -p server/bin
+          find . -name "authserver.exe" -o -name "worldserver.exe" 2>/dev/null | while read f; do
+            cp -v "$f" server/bin/ 2>/dev/null || true
+          done
+          find . -name "*.dll" -path "*/bin/*" 2>/dev/null | while read f; do
+            cp -v "$f" server/bin/ 2>/dev/null || true
+          done
+          echo "=== Server binaries ==="
+          ls -la server/bin/ 2>/dev/null || echo "  (none found)"
+
+      # Step 8: Collect config files
+      - name: Collect config files
+        shell: bash
+        run: |
+          mkdir -p server/etc
+          find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" 2>/dev/null | while read f; do
+            cp -v "$f" server/etc/ 2>/dev/null || true
+          done
+          find modules-src -name "*.conf.dist" 2>/dev/null | while read f; do
+            cp -v "$f" server/etc/ 2>/dev/null || true
+          done
+          echo "=== Config files ==="
+          ls server/etc/ 2>/dev/null
+
+      # Step 9: Collect lua_scripts if any
+      - name: Collect lua_scripts
+        shell: bash
+        run: |
+          if [ -d "data/lua_scripts" ]; then
+            mkdir -p server/data
+            cp -r data/lua_scripts server/data/
+            echo "Copied lua_scripts/"
+          fi
+
+      # Step 10: Upload artifacts
+      - name: Upload server artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: azerothcore-acoremods-windows
+          path: |
+            server/bin/
+            server/etc/
+            server/data/
+          retention-days: 7
