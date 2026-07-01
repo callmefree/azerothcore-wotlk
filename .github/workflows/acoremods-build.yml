@@ -56,25 +56,29 @@ jobs:
           choco install --no-progress --skip-checksums -y mysql --version=8.4.9 2>&1 || true
 
       - name: Build
+        id: build
         shell: bash
         run: |
           export CTOOLS_BUILD=all
           export CONTINUOUS_INTEGRATION=true
-          set -o pipefail
-          ./acore.sh compiler build 2>&1 | tee build.log
+          set +e
+          ./acore.sh compiler build > build.log 2>&1
           EXIT=$?
-          if [ $EXIT -ne 0 ]; then
-            # Emit errors as annotations (visible without login!)
-            grep -i "error[: ]" build.log | grep -v "0 Error\|warning\|WARNING" | head -50 | while IFS= read -r line; do
-              echo "::error ::${line}" | head -c 65000
-            done
-            echo ""
-            echo "=== TAIL OF BUILD LOG ==="
-            tail -200 build.log
-            exit 1
-          fi
+          # Extract errors into step summary (visible without login)
+          {
+            echo "## Build Result (exit=$EXIT)"
+            echo '```'
+            grep -iE "error|fatal|undefined" build.log | grep -v "0 Error\|0 Warning\|Warn :\|MSB" | head -80
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+          # Also emit as annotations
+          grep -iE "error C[0-9]|fatal error|undefined reference" build.log | head -40 | while IFS= read -r line; do
+            echo "::error ::${line}"
+          done
+          exit $EXIT
 
       - name: Collect binaries
+        if: success()
         shell: bash
         run: |
           mkdir -p server/bin
@@ -83,17 +87,20 @@ jobs:
           ls -la server/bin/ 2>/dev/null || echo "(no binaries)"
 
       - name: Collect configs
+        if: success()
         shell: bash
         run: |
           mkdir -p server/etc
           find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" 2>/dev/null | while read f; do cp -v "$f" server/etc/ 2>/dev/null || true; done
 
       - name: Collect lua_scripts
+        if: success()
         shell: bash
         run: |
-            [ -d "data/lua_scripts" ] && { mkdir -p server/data && cp -r data/lua_scripts server/data/; } || true
+          if [ -d "data/lua_scripts" ]; then mkdir -p server/data && cp -r data/lua_scripts server/data/; fi
 
       - name: Upload server artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: azerothcore-acoremods-windows
