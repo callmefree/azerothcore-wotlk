@@ -501,7 +501,7 @@ void Object::BuildValuesUpdate(uint8 updateType, ByteBuffer* data, Player* targe
                 ((updateType == UPDATETYPE_VALUES ? _changesMask.GetBit(index) : m_uint32Values[index]) && (flags[index] & visibleFlag)))
         {
             updateMask.SetBit(index);
-            fieldBuffer << m_uint32Values[index];
+            fieldBuffer << sScriptMgr->RewriteItemFieldOnEgress(this, index, m_uint32Values[index]);  // mod-custom-items (was: m_uint32Values[index])
         }
     }
 

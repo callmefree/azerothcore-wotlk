@@ -84,6 +84,18 @@ void ScriptMgr::OnBeforeWorldInitialized()
     CALL_ENABLED_HOOKS(WorldScript, WORLDHOOK_ON_BEFORE_WORLD_INITIALIZED, script->OnBeforeWorldInitialized());
 }
 
+// mod-mount-progression: inject custom spells before SpellMgr loads.
+void ScriptMgr::OnAfterLoadDBCStores()
+{
+    CALL_ENABLED_HOOKS(WorldScript, WORLDHOOK_ON_AFTER_LOAD_DBC_STORES, script->OnAfterLoadDBCStores());
+}
+
+// mod-custom-items: inject custom item templates after item_template loads.
+void ScriptMgr::OnAfterLoadItemTemplates()
+{
+    CALL_ENABLED_HOOKS(WorldScript, WORLDHOOK_ON_AFTER_LOAD_ITEM_TEMPLATES, script->OnAfterLoadItemTemplates());
+}
+
 WorldScript::WorldScript(const char* name, std::vector<uint16> enabledHooks)
     : ScriptObject(name, WORLDHOOK_END)
 {

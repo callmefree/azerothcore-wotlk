@@ -37,6 +37,8 @@ enum WorldHook
     WORLDHOOK_ON_AFTER_UNLOAD_ALL_MAPS,
     WORLDHOOK_ON_BEFORE_FINALIZE_PLAYER_WORLD_SESSION,
     WORLDHOOK_ON_BEFORE_WORLD_INITIALIZED,
+    WORLDHOOK_ON_AFTER_LOAD_DBC_STORES,  // mod-mount-progression
+    WORLDHOOK_ON_AFTER_LOAD_ITEM_TEMPLATES,  // mod-custom-items
     WORLDHOOK_END
 };
 
@@ -92,6 +94,22 @@ public:
      * @brief This hook runs after all scripts loading and before itialized
      */
     virtual void OnBeforeWorldInitialized() { }
+
+    // Fires immediately after LoadDBCStores() populates sSpellStore /
+    // sSkillLineAbilityStore / etc. from the DBC files and their
+    // *_dbc overlay tables, and before SpellMgr::LoadSpellInfoStore()
+    // builds mSpellInfoMap. Use this to inject custom spell entries
+    // from module-owned tables via DBCStorage::LoadFromDB without
+    // touching the shared spell_dbc overlay.
+    //   mod-mount-progression
+    virtual void OnAfterLoadDBCStores() { }
+
+    // Fires immediately after ObjectMgr::LoadItemTemplates() populates
+    // _itemTemplateStore from item_template, and before LoadItemSetNames().
+    // Use this to inject custom item entries from module-owned tables
+    // into the in-memory store without writing to AC-native item_template.
+    //   mod-custom-items
+    virtual void OnAfterLoadItemTemplates() { }
 };
 
 #endif

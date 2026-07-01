@@ -785,6 +785,13 @@ public:
     ItemTemplate const* GetItemTemplate(uint32 entry);
     [[nodiscard]] ItemTemplateContainer const* GetItemTemplateStore() const { return &_itemTemplateStore; }
     [[nodiscard]] std::vector<ItemTemplate*> const* GetItemTemplateStoreFast() const { return &_itemTemplateStoreFast; }
+    // mod-custom-items: mutable accessor used by OnAfterLoadItemTemplates
+    // hook overrides to inject module-owned custom item entries.
+    ItemTemplateContainer* GetMutableItemTemplateStore() { return &_itemTemplateStore; }
+    // mod-custom-items: rebuild the entry-indexed fast lookup vector
+    // after custom items have been injected; otherwise GetItemTemplate
+    // returns nullptr for entries past the original max.
+    void RebuildItemTemplateFastStore();
 
     uint32 GetModelForTotem(SummonSlot totemSlot, Races race) const;
 

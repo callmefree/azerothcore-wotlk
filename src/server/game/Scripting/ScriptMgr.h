@@ -175,6 +175,8 @@ public: /* WorldScript */
     void OnShutdown();
     void OnBeforeWorldInitialized();
     void OnAfterUnloadAllMaps();
+    void OnAfterLoadDBCStores();  // mod-mount-progression
+    void OnAfterLoadItemTemplates();  // mod-custom-items
 
 public: /* FormulaScript */
     void OnHonorCalculation(float& honor, uint8 level, float multiplier);
@@ -206,6 +208,12 @@ public: /* ItemScript */
     bool OnItemRemove(Player* player, Item* item);
     bool OnCastItemCombatSpell(Player* player, Unit* victim, SpellInfo const* spellInfo, Item* item);
     void OnGossipSelect(Player* player, Item* item, uint32 sender, uint32 action);
+    void OnItemBuildValuesUpdate(Item const* item, uint32& entry);  // mod-custom-items
+    void OnItemQueryTemplate(Player const* querier, uint32 wireEntry, ItemTemplate const*& proto);  // mod-custom-items
+    // mod-custom-items: per-field egress helper invoked once per emitted update field by Object::BuildValuesUpdate.
+    // Owns the decision of which fields to route through OnItemBuildValuesUpdate (item entry on Item objects,
+    // PLAYER_VISIBLE_ITEM_*_ENTRYID slots on Player objects). Keeps Object.cpp's diff at exactly one modified line.
+    uint32 RewriteItemFieldOnEgress(Object const* obj, uint16 index, uint32 rawValue);
     void OnGossipSelectCode(Player* player, Item* item, uint32 sender, uint32 action, const char* code);
 
 public: /* CreatureScript */
@@ -368,6 +376,7 @@ public: /* PlayerScript */
     bool OnPlayerBeforeOpenItem(Player* player, Item* item);
     bool OnPlayerBeforeQuestComplete(Player* player, uint32 quest_id);
     void OnPlayerQuestComputeXP(Player* player, Quest const* quest, uint32& xpValue);
+    void OnPlayerQuestComputeMoney(Player* player, Quest const* quest, int32& moneyRew);
     void OnPlayerBeforeDurabilityRepair(Player* player, ObjectGuid npcGUID, ObjectGuid itemGUID, float& discountMod, uint8 guildBank);
     void OnPlayerBeforeBuyItemFromVendor(Player* player, ObjectGuid vendorguid, uint32 vendorslot, uint32& item, uint8 count, uint8 bag, uint8 slot);
     void OnPlayerBeforeStoreOrEquipNewItem(Player* player, uint32 vendorslot, uint32& item, uint8 count, uint8 bag, uint8 slot, ItemTemplate const* pProto, Creature* pVendor, VendorItem const* crItem, bool bStore);
@@ -555,6 +564,7 @@ public: /* UnitScript */
     void OnBeforeRollMeleeOutcomeAgainst(Unit const* attacker, Unit const* victim, WeaponAttackType attType, int32& attackerMaxSkillValueForLevel, int32& victimMaxSkillValueForLevel, int32& attackerWeaponSkill, int32& victimDefenseSkill, int32& crit_chance, int32& miss_chance, int32& dodge_chance, int32& parry_chance, int32& block_chance);
     void OnAuraApply(Unit* /*unit*/, Aura* /*aura*/);
     void OnAuraRemove(Unit* unit, AuraApplication* aurApp, AuraRemoveMode mode);
+    void OnAuraBuildUpdatePacket(Aura const* aura, uint32& spellId);  // mod-mount-progression
     bool IfNormalReaction(Unit const* unit, Unit const* target, ReputationRank& repRank);
     bool CanSetPhaseMask(Unit const* unit, uint32 newPhaseMask, bool update);
     bool IsCustomBuildValuesUpdate(Unit const* unit, uint8 updateType, ByteBuffer& fieldBuffer, Player const* target, uint16 index);

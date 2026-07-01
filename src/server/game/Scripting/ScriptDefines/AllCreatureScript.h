@@ -67,6 +67,22 @@ public:
     [[nodiscard]] virtual bool CanCreatureGossipHello(Player* /*player*/, Creature* /*creature*/) { return false; }
 
     /**
+     * @brief Additive gossip-hello hook (acoremods). Unlike CanCreatureGossipHello — which
+     * short-circuits at the first script that returns true — every registered AllCreatureScript
+     * gets this call on a single shared, already-prepared gossip menu, letting multiple modules
+     * append their own options to the same NPC (e.g. innkeepers) without clobbering each other.
+     * The core prepares the native menu before the dispatch and sends it once afterwards;
+     * implementers must ONLY append items via AddGossipItemFor (no PrepareGossipMenu /
+     * SendPreparedGossip / ClearGossipMenuFor).
+     *
+     * @param player Contains information about the Player
+     * @param creature Contains information about the Creature
+     *
+     * @return True if this script appended at least one item (so the core sends the menu).
+     */
+    [[nodiscard]] virtual bool OnCreatureGossipHelloAppend(Player* /*player*/, Creature* /*creature*/) { return false; }
+
+    /**
      * @brief This hook called when a player selects a gossip item in the creature's gossip menu.
      *
      * @param player Contains information about the Player

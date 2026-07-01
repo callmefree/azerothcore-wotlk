@@ -17,6 +17,8 @@
 
 #include "CreatureScript.h"
 #include "AllCreatureScript.h"
+#include "Creature.h"
+#include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptMgrMacros.h"
 #include "ScriptedGossip.h"
@@ -36,9 +38,55 @@ bool ScriptMgr::OnGossipHello(Player* player, Creature* creature)
         return true;
     }
 
+    // acoremods — additive gossip-hello. Let EVERY AllCreatureScript append
+    // its own options to a single shared menu so multiple modules coexist
+    // (instead of first-wins). The base menu MUST be built the same way it
+    // normally would be, so the native options keep the action ids their own
+    // selection handler expects:
+    //   * scripted NPC (e.g. innkeepers run npc_innkeeper, which AddGossipItemFor's
+    //     its options with GOSSIP_ACTION_* and dispatches them in OnGossipSelect):
+    //     pre-append our items, then let the creature's own OnGossipHello add its
+    //     options on top and send the whole menu. Our items ride along; the native
+    //     options stay routed to the creature script's OnGossipSelect.
+    //   * non-scripted NPC: build the DB gossip menu via PrepareGossipMenu (its
+    //     native options dispatch through Player::OnGossipSelect), append, send.
     auto tempScript = ScriptRegistry<CreatureScript>::GetScriptById(creature->GetScriptId());
+
+    if (tempScript)
+    {
+        ClearGossipMenuFor(player);
+        for (auto const& [scriptID, script] : ScriptRegistry<AllCreatureScript>::ScriptPointerList)
+        {
+            script->OnCreatureGossipHelloAppend(player, creature);
+        }
+        // The creature's own hello adds its options (without clearing, for
+        // gossip scripts like npc_innkeeper) and sends the full menu.
+        return tempScript->OnGossipHello(player, creature);
+    }
+
+    if (!ScriptRegistry<AllCreatureScript>::ScriptPointerList.empty())
+    {
+        bool appended = false;
+        player->PrepareGossipMenu(creature, creature->GetGossipMenuId(), true);
+        for (auto const& [scriptID, script] : ScriptRegistry<AllCreatureScript>::ScriptPointerList)
+        {
+            if (script->OnCreatureGossipHelloAppend(player, creature))
+            {
+                appended = true;
+            }
+        }
+
+        if (appended)
+        {
+            player->SendPreparedGossip(creature);
+            return true;
+        }
+    }
+
+    // Nothing appended and no creature script — discard our prepared menu and
+    // let the caller (NPCHandler) send the default gossip.
     ClearGossipMenuFor(player);
-    return tempScript ? tempScript->OnGossipHello(player, creature) : false;
+    return false;
 }
 
 bool ScriptMgr::OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action)

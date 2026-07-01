@@ -766,6 +766,8 @@ void Player::RewardQuest(Quest const* quest, uint32 reward, Object* questGiver, 
         moneyRew += rewOrReqMoney;
     }
 
+    sScriptMgr->OnPlayerQuestComputeMoney(this, quest, moneyRew);
+
     if (moneyRew)
     {
         ModifyMoney(moneyRew);

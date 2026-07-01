@@ -377,6 +377,7 @@ void World::SetInitialWorldSettings()
     ///- Load the DBC files
     LOG_INFO("server.loading", "Initialize Data Stores...");
     LoadDBCStores(_dataPath);
+    sScriptMgr->OnAfterLoadDBCStores();  // mod-mount-progression
     DetectDBCLang();
 
     // Load cinematic cameras
@@ -522,6 +523,7 @@ void World::SetInitialWorldSettings()
 
     LOG_INFO("server.loading", "Loading Items...");                         // must be after LoadRandomEnchantmentsTable and LoadPageTexts
     sObjectMgr->LoadItemTemplates();
+    sScriptMgr->OnAfterLoadItemTemplates();  // mod-custom-items
 
     LOG_INFO("server.loading", "Loading Item Set Names...");                // must be after LoadItemPrototypes
     sObjectMgr->LoadItemSetNames();

@@ -395,6 +395,7 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recvData)
     LOG_DEBUG("network.opcode", "STORAGE: Item Query = {}", item);
 
     ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item);
+    sScriptMgr->OnItemQueryTemplate(GetPlayer(), item, pProto);  // mod-custom-items
     if (pProto)
     {
         std::string Name = pProto->Name1;
@@ -411,7 +412,7 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recvData)
         }
         // guess size
         WorldPacket queryData(SMSG_ITEM_QUERY_SINGLE_RESPONSE, 600);
-        queryData << pProto->ItemId;
+        queryData << item;  // mod-custom-items (was: pProto->ItemId) — keep wire ItemId == queried entry even when OnItemQueryTemplate substitutes pProto
         queryData << pProto->Class;
         queryData << pProto->SubClass;
         queryData << pProto->SoundOverrideSubclass;

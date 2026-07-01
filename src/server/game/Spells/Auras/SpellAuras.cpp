@@ -197,7 +197,9 @@ void AuraApplication::BuildUpdatePacket(ByteBuffer& data, bool remove) const
     ASSERT(_target->GetVisibleAura(_slot));
 
     Aura const* aura = GetBase();
-    data << uint32(aura->GetId());
+    uint32 displaySpellId = aura->GetId();                                // mod-mount-progression
+    sScriptMgr->OnAuraBuildUpdatePacket(aura, displaySpellId);            // mod-mount-progression
+    data << uint32(displaySpellId);                                       // mod-mount-progression
     uint32 flags = _flags;
     if (aura->GetMaxDuration() > 0 && !aura->GetSpellInfo()->HasAttribute(SPELL_ATTR5_DO_NOT_DISPLAY_DURATION))
         flags |= AFLAG_DURATION;

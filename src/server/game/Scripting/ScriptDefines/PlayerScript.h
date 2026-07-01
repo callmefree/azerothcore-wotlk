@@ -107,6 +107,7 @@ enum PlayerHook
     PLAYERHOOK_ON_BEFORE_OPEN_ITEM,
     PLAYERHOOK_ON_BEFORE_QUEST_COMPLETE,
     PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
+    PLAYERHOOK_ON_QUEST_COMPUTE_MONEY,
     PLAYERHOOK_ON_BEFORE_DURABILITY_REPAIR,
     PLAYERHOOK_ON_BEFORE_BUY_ITEM_FROM_VENDOR,
     PLAYERHOOK_ON_BEFORE_STORE_OR_EQUIP_NEW_ITEM,
@@ -451,6 +452,11 @@ public:
 
     // Called after computing the XP reward value for a quest
     virtual void OnPlayerQuestComputeXP(Player* /*player*/, Quest const* /*quest*/, uint32& /*xpValue*/) { }
+
+    // Called after computing the money reward value for a quest, right
+    // before it is applied via ModifyMoney(). moneyRew is signed because
+    // quests may cost money rather than reward it.
+    virtual void OnPlayerQuestComputeMoney(Player* /*player*/, Quest const* /*quest*/, int32& /*moneyRew*/) { }
 
     // Before durability repair action, you can even modify the discount value
     virtual void OnPlayerBeforeDurabilityRepair(Player* /*player*/, ObjectGuid /*npcGUID*/, ObjectGuid /*itemGUID*/, float&/*discountMod*/, uint8 /*guildBank*/) { }

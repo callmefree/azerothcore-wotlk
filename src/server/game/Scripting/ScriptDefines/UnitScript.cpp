@@ -139,6 +139,12 @@ void ScriptMgr::OnUnitSetShapeshiftForm(Unit* unit, uint8 form)
     CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM, script->OnUnitSetShapeshiftForm(unit, form));
 }
 
+// mod-mount-progression: lets modules rewrite the outgoing aura spell ID for display.
+void ScriptMgr::OnAuraBuildUpdatePacket(Aura const* aura, uint32& spellId)
+{
+    CALL_ENABLED_HOOKS(UnitScript, UNITHOOK_ON_AURA_BUILD_UPDATE_PACKET, script->OnAuraBuildUpdatePacket(aura, spellId));
+}
+
 UnitScript::UnitScript(const char* name, bool addToScripts, std::vector<uint16> enabledHooks)
     : ScriptObject(name, UNITHOOK_END)
 {

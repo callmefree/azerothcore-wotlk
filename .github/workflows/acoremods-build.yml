@@ -29,83 +29,12 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Fetch modules + configs from acoremods repo only (patches already applied in branch)
       - uses: actions/checkout@v4
         with:
           repository: callmefree/acoremods
           ref: ${{ github.event.inputs.acoremods_branch || 'main' }}
           path: modules-src
-
-      # Try patch first; if it fails, apply changes directly via sed
-      - name: Apply core patches
-        shell: bash
-        run: |
-          set -e
-          PATCH=modules-src/core-patches/acore-core-hooks.patch
-
-          # Try 1: standard 3-way merge
-          echo "=== Trying git apply --3way ==="
-          if git apply --3way "$PATCH" 2>&1; then
-            echo "SUCCESS: git apply --3way worked"
-            exit 0
-          fi
-          echo "git apply failed, trying direct patching..."
-
-          # Try 2: patch command with fuzz
-          echo "=== Trying patch -F 10 ==="
-          patch -p1 -F 10 --force -r /dev/null < "$PATCH" 2>&1 || true
-
-          # Try 3: Direct sed modifications for the 6 hooks
-          echo "=== Direct modifications ==="
-
-          # Hook 1+2: WorldScript - OnAfterLoadDBCStores + OnAfterLoadItemTemplates
-          FILE=src/server/game/Scripting/ScriptDefines/WorldScript.h
-          if ! grep -q 'OnAfterLoadDBCStores' "$FILE" 2>/dev/null; then
-            sed -i '/WORLDHOOK_ON_BEFORE_WORLD_INITIALIZED,/a\    WORLDHOOK_ON_AFTER_LOAD_DBC_STORES,\n    WORLDHOOK_ON_AFTER_LOAD_ITEM_TEMPLATES,' "$FILE"
-            sed -i '/virtual void OnBeforeWorldInitialized/a\    virtual void OnAfterLoadDBCStores() { }\n    virtual void OnAfterLoadItemTemplates() { }' "$FILE"
-            echo "  WorldScript hooks added"
-          fi
-
-          FILE=src/server/game/Scripting/ScriptDefines/WorldScript.cpp
-          if ! grep -q 'OnAfterLoadDBCStores' "$FILE" 2>/dev/null; then
-            # Add hook constant definitions
-            echo 'static constexpr uint32 WORLDHOOK_ON_AFTER_LOAD_DBC_STORES_DEFAULT = 0;' >> /dev/null
-          fi
-
-          # Hook 5: UnitScript - OnAuraBuildUpdatePacket
-          FILE=src/server/game/Scripting/ScriptDefines/UnitScript.h
-          if ! grep -q 'OnAuraBuildUpdatePacket' "$FILE" 2>/dev/null; then
-            sed -i '/UNITHOOK_END/i\    UNITHOOK_ON_AURA_BUILD_UPDATE_PACKET,' "$FILE"
-            echo '    virtual void OnAuraBuildUpdatePacket(Aura const*, uint32&) { }' >> "$FILE"
-            echo "  UnitScript hook added"
-          fi
-
-          # Hook 6: PlayerScript - OnPlayerQuestComputeMoney
-          FILE=src/server/game/Scripting/ScriptDefines/PlayerScript.h
-          if ! grep -q 'OnPlayerQuestComputeMoney' "$FILE" 2>/dev/null; then
-            sed -i '/PLAYERHOOK_END/i\    PLAYERHOOK_ON_QUEST_COMPUTE_MONEY,' "$FILE"
-            echo '    virtual void OnPlayerQuestComputeMoney(Player*, Quest const*, uint32&) { }' >> "$FILE"
-            echo "  PlayerScript hook added"
-          fi
-
-          # Report what was applied
-          echo "=== Verification ==="
-          grep -rn 'OnAfterLoadDBCStores\|OnAfterLoadItemTemplates\|OnAuraBuildUpdatePacket\|OnPlayerQuestComputeMoney' src/server/game/Scripting/ 2>/dev/null | head -20
-          echo ""
-          echo "=== Status ==="
-
-          # Check if hooks exist now
-          MISSING=0
-          for hook in OnAfterLoadDBCStores OnAfterLoadItemTemplates OnAuraBuildUpdatePacket OnPlayerQuestComputeMoney; do
-            if ! grep -rq "$hook" src/server/game/Scripting/ 2>/dev/null; then
-              echo "  MISSING: $hook"
-              MISSING=1
-            fi
-          done
-          if [ $MISSING -eq 1 ]; then
-            echo "Some hooks could not be applied. Full patch needed."
-            exit 1
-          fi
-          echo "All headers patched."
 
       - name: Copy modules
         shell: bash
@@ -114,9 +43,18 @@ jobs:
             name=$(basename "$mod")
             [ -d "$mod" ] || continue
             cp -r "$mod" "modules/$name"
-            echo "Copied: $name"
+            echo "  Copied: $name"
           done
+          echo "=== Modules ==="
           ls modules/ | grep '^mod-'
+
+      - name: Copy module configs
+        shell: bash
+        run: |
+          for conf in modules-src/mod-*/conf/*.conf.dist; do
+            [ -f "$conf" ] || continue
+            cp -v "$conf" conf/
+          done
 
       - name: Install dependencies
         shell: bash
@@ -133,7 +71,7 @@ jobs:
           export CONTINUOUS_INTEGRATION=true
           ./acore.sh compiler build
 
-      - name: Collect server binaries
+      - name: Collect binaries
         shell: bash
         run: |
           mkdir -p server/bin
@@ -150,9 +88,6 @@ jobs:
         run: |
           mkdir -p server/etc
           find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" 2>/dev/null | while read f; do
-            cp -v "$f" server/etc/ 2>/dev/null || true
-          done
-          find modules-src -name "*.conf.dist" 2>/dev/null | while read f; do
             cp -v "$f" server/etc/ 2>/dev/null || true
           done
           ls server/etc/ 2>/dev/null

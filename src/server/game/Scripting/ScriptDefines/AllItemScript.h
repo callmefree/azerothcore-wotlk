@@ -43,6 +43,24 @@ public:
 
     // Called when a player selects an option in an item gossip window
     virtual void OnItemGossipSelectCode(Player* /*player*/, Item* /*item*/, uint32 /*sender*/, uint32 /*action*/, const char* /*code*/) { }
+
+    // Fires while building OBJECT_FIELD_ENTRY in an Item's update packet.
+    // Overriding rewrites only the entry ID emitted to the client (used
+    // for bag-icon / equip / 3D render lookups against client-side
+    // Item.dbc), not the server-side item identity.
+    //   mod-custom-items
+    virtual void OnItemBuildValuesUpdate(Item const* /*item*/, uint32& /*entry*/) { }
+
+    // Fires inside HandleItemQuerySingleOpcode after GetItemTemplate(),
+    // before the SMSG_ITEM_QUERY_SINGLE_RESPONSE is serialized. Lets a
+    // module substitute a different ItemTemplate based on the querier's
+    // session/inventory state — the path that lets the client render a
+    // donor's icon/3D model (via OBJECT_FIELD_ENTRY rewrite) AND the
+    // custom item's name/description/quality in the tooltip. The wire
+    // ItemId field stays equal to the queried entry regardless of the
+    // substitution.
+    //   mod-custom-items
+    virtual void OnItemQueryTemplate(Player const* /*querier*/, uint32 /*wireEntry*/, ItemTemplate const*& /*proto*/) { }
 };
 
 #endif

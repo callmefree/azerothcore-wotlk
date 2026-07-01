@@ -3935,6 +3935,24 @@ ItemTemplate const* ObjectMgr::GetItemTemplate(uint32 entry)
     return entry < _itemTemplateStoreFast.size() ? _itemTemplateStoreFast[entry] : nullptr;
 }
 
+// mod-custom-items: rebuild _itemTemplateStoreFast from _itemTemplateStore.
+// Called from module OnAfterLoadItemTemplates overrides after custom item
+// injection so GetItemTemplate(custom_entry) resolves through the fast
+// path. Mirrors the pussywizard block at the tail of LoadItemTemplates.
+void ObjectMgr::RebuildItemTemplateFastStore()
+{
+    uint32 max = 0;
+    for (auto const& kv : _itemTemplateStore)
+        if (kv.first > max)
+            max = kv.first;
+    if (!max)
+        return;
+    _itemTemplateStoreFast.clear();
+    _itemTemplateStoreFast.resize(max + 1, nullptr);
+    for (auto& kv : _itemTemplateStore)
+        _itemTemplateStoreFast[kv.first] = &kv.second;
+}
+
 void ObjectMgr::LoadItemSetNameLocales()
 {
     uint32 oldMSTime = getMSTime();

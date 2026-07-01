@@ -44,6 +44,7 @@ enum UnitHook
     UNITHOOK_ON_UNIT_EXIT_COMBAT,
     UNITHOOK_ON_UNIT_DEATH,
     UNITHOOK_ON_UNIT_SET_SHAPESHIFT_FORM,
+    UNITHOOK_ON_AURA_BUILD_UPDATE_PACKET,
     UNITHOOK_END
 };
 
@@ -110,6 +111,7 @@ public:
     virtual void OnUnitExitCombat(Unit* /*unit*/) { }
     virtual void OnUnitDeath(Unit* /*unit*/, Unit* /*killer*/) { }
     virtual void OnUnitSetShapeshiftForm(Unit* /*unit*/, uint8 /*form*/) { }
+    virtual void OnAuraBuildUpdatePacket(Aura const* /*aura*/, uint32& /*spellId*/) { }
 };
 
 #endif

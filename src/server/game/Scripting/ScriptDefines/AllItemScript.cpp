@@ -142,6 +142,58 @@ void ScriptMgr::OnGossipSelectCode(Player* player, Item* item, uint32 sender, ui
     }
 }
 
+// mod-custom-items: rewrite the on-wire entry for items in update packets.
+void ScriptMgr::OnItemBuildValuesUpdate(Item const* item, uint32& entry)
+{
+    ExecuteScript<AllItemScript>([&](AllItemScript* script)
+    {
+        script->OnItemBuildValuesUpdate(item, entry);
+    });
+}
+
+// mod-custom-items: substitute the ItemTemplate served on
+// SMSG_ITEM_QUERY_SINGLE_RESPONSE based on the querier's session.
+void ScriptMgr::OnItemQueryTemplate(Player const* querier, uint32 wireEntry, ItemTemplate const*& proto)
+{
+    ExecuteScript<AllItemScript>([&](AllItemScript* script)
+    {
+        script->OnItemQueryTemplate(querier, wireEntry, proto);
+    });
+}
+
+// mod-custom-items: encapsulated per-field egress dispatch. Lives here
+// rather than as a member of Object so the Object class stays untouched
+// at the .h level and Object::BuildValuesUpdate only sees a one-line
+// call-site modification. The two index ranges this routes through
+// OnItemBuildValuesUpdate are:
+//   * OBJECT_FIELD_ENTRY (offset 3) on Item-typed objects — drives the
+//     bag-slot icon and on-cursor display lookups via Item.dbc.
+//   * PLAYER_VISIBLE_ITEM_N_ENTRYID (N=1..19) on Player-typed objects
+//     — drives the equipped-slot icon on the paper doll AND the
+//     equipped 3D model rendered to other players' clients. Each
+//     visible-item slot is two fields wide (entry + enchantment); the
+//     `(index - PLAYER_VISIBLE_ITEM_1_ENTRYID) % 2u == 0` check picks
+//     the entry field only.
+// Default behavior with no module override is identical to returning
+// rawValue unchanged.
+uint32 ScriptMgr::RewriteItemFieldOnEgress(Object const* obj, uint16 index, uint32 rawValue)
+{
+    if (!obj)
+        return rawValue;
+    if (index == OBJECT_FIELD_ENTRY && obj->isType(TYPEMASK_ITEM))
+    {
+        OnItemBuildValuesUpdate(static_cast<Item const*>(obj), rawValue);
+    }
+    else if (obj->isType(TYPEMASK_PLAYER)
+             && index >= PLAYER_VISIBLE_ITEM_1_ENTRYID
+             && index <= PLAYER_VISIBLE_ITEM_19_ENTRYID
+             && ((index - PLAYER_VISIBLE_ITEM_1_ENTRYID) % 2u) == 0)
+    {
+        OnItemBuildValuesUpdate(nullptr, rawValue);
+    }
+    return rawValue;
+}
+
 AllItemScript::AllItemScript(const char* name) :
     ScriptObject(name)
 {
