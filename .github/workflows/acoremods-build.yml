@@ -90,7 +90,8 @@ jobs:
 
       - name: Collect lua_scripts
         shell: bash
-        run: [ -d "data/lua_scripts" ] && { mkdir -p server/data && cp -r data/lua_scripts server/data/; } || true
+        run: |
+            [ -d "data/lua_scripts" ] && { mkdir -p server/data && cp -r data/lua_scripts server/data/; } || true
 
       - name: Upload server artifacts
         uses: actions/upload-artifact@v4
