@@ -33,6 +33,11 @@ jobs:
           ref: ${{ github.event.inputs.acoremods_branch || 'main' }}
           path: modules-src
 
+      - uses: actions/checkout@v4
+        with:
+          repository: callmefree/mod-ale
+          path: mod-ale-src
+
       - name: Copy modules
         shell: bash
         run: |
@@ -46,6 +51,12 @@ jobs:
       - name: Copy module configs
         shell: bash
         run: for conf in modules-src/mod-*/conf/*.conf.dist; do [ -f "$conf" ] && cp -v "$conf" conf/; done
+
+      - name: Copy mod-ale
+        shell: bash
+        run: |
+          cp -r mod-ale-src modules/mod-ale
+          echo "Copied: mod-ale"
 
       - name: Install dependencies
         shell: bash
@@ -97,7 +108,9 @@ jobs:
         if: success()
         shell: bash
         run: |
-          if [ -d "data/lua_scripts" ]; then mkdir -p server/data && cp -r data/lua_scripts server/data/; fi
+          mkdir -p server/bin/lua_scripts
+          find . -path "*/lua_scripts/extensions" -type d 2>/dev/null | while read d; do cp -r "$d" server/bin/lua_scripts/ 2>/dev/null || true; done
+          find . -name "*.lua" -not -path "./.git/*" 2>/dev/null | while read f; do cp -v "$f" server/bin/lua_scripts/ 2>/dev/null || true; done
 
       - name: Upload server artifacts
         if: success()
