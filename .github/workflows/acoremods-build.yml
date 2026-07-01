@@ -42,15 +42,10 @@ jobs:
             cp -r "$mod" "modules/$name"
             echo "Copied: $name"
           done
-          ls modules/ | grep '^mod-'
 
       - name: Copy module configs
         shell: bash
-        run: |
-          for conf in modules-src/mod-*/conf/*.conf.dist; do
-            [ -f "$conf" ] || continue
-            cp -v "$conf" conf/
-          done
+        run: for conf in modules-src/mod-*/conf/*.conf.dist; do [ -f "$conf" ] && cp -v "$conf" conf/; done
 
       - name: Install dependencies
         shell: bash
@@ -65,18 +60,17 @@ jobs:
         run: |
           export CTOOLS_BUILD=all
           export CONTINUOUS_INTEGRATION=true
+          set -o pipefail
           ./acore.sh compiler build 2>&1 | tee build.log
-          EXIT=${PIPESTATUS[0]}
-          echo ""
-          echo "=== TAIL OF BUILD LOG (last 300 lines) ==="
-          tail -300 build.log
-          echo "=== END ==="
+          EXIT=$?
           if [ $EXIT -ne 0 ]; then
-            # Show errors
+            # Emit errors as annotations (visible without login!)
+            grep -i "error[: ]" build.log | grep -v "0 Error\|warning\|WARNING" | head -50 | while IFS= read -r line; do
+              echo "::error ::${line}" | head -c 65000
+            done
             echo ""
-            echo "=== EXTRACTED ERRORS ==="
-            grep -i "error[: ]" build.log | tail -40 || true
-            echo "=== END ERRORS ==="
+            echo "=== TAIL OF BUILD LOG ==="
+            tail -200 build.log
             exit 1
           fi
 
@@ -84,21 +78,19 @@ jobs:
         shell: bash
         run: |
           mkdir -p server/bin
-          find . \( -name "authserver.exe" -o -name "worldserver.exe" \) -print0 2>/dev/null | xargs -0 -I{} cp -v "{}" server/bin/ 2>/dev/null || true
-          find . -name "*.dll" -path "*/bin/*" -print0 2>/dev/null | xargs -0 -I{} cp -v "{}" server/bin/ 2>/dev/null || true
+          find . \( -name "authserver.exe" -o -name "worldserver.exe" \) 2>/dev/null | while read f; do cp -v "$f" server/bin/ 2>/dev/null || true; done
+          find . -name "*.dll" -path "*/bin/*" 2>/dev/null | while read f; do cp -v "$f" server/bin/ 2>/dev/null || true; done
           ls -la server/bin/ 2>/dev/null || echo "(no binaries)"
 
       - name: Collect configs
         shell: bash
         run: |
           mkdir -p server/etc
-          find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" -print0 2>/dev/null | xargs -0 -I{} cp -v "{}" server/etc/ 2>/dev/null || true
-          ls server/etc/ 2>/dev/null
+          find . -name "*.conf.dist" -not -path "./.git/*" -not -path "./modules-src/*" 2>/dev/null | while read f; do cp -v "$f" server/etc/ 2>/dev/null || true; done
 
       - name: Collect lua_scripts
         shell: bash
-        run: |
-          [ -d "data/lua_scripts" ] && { mkdir -p server/data && cp -r data/lua_scripts server/data/; }
+        run: [ -d "data/lua_scripts" ] && { mkdir -p server/data && cp -r data/lua_scripts server/data/; } || true
 
       - name: Upload server artifacts
         uses: actions/upload-artifact@v4
