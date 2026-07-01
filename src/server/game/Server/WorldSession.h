@@ -393,7 +393,7 @@ struct PacketCounter
 class WorldSession
 {
 public:
-    WorldSession(uint32 id, std::string&& name, uint32 accountFlags, std::shared_ptr<WorldSocket> sock, AccountTypes sec, uint8 expansion, time_t mute_time, LocaleConstant locale, uint32 recruiter, bool isARecruiter, bool skipQueue, uint32 TotalTime);
+    WorldSession(uint32 id, std::string&& name, uint32 accountFlags, std::shared_ptr<WorldSocket> sock, AccountTypes sec, uint8 expansion, time_t mute_time, LocaleConstant locale, uint32 recruiter, bool isARecruiter, bool skipQueue, uint32 TotalTime, bool isBot = false);
     ~WorldSession();
 
     uint32 GetAccountFlags() const { return _accountFlags; }
@@ -405,6 +405,7 @@ public:
     bool IsTrialAccount() const;
     bool IsInternetGameRoomAccount() const;
     bool IsRecurringBillingAccount() const;
+    bool IsBot() const;
 
     uint8 GetBillingPlanFlags() const;
 
@@ -1249,6 +1250,7 @@ private:
     uint32 _accountFlags;
     uint8 m_expansion;
     uint32 m_total_time;
+    bool _isBot;
 
     typedef std::list<AddonInfo> AddonsList;
 
