@@ -1,0 +1,58 @@
+{
+  "Spell.dbc": {
+    "_comment": "232 columns. Name_Lang(150-165), NameSubtext(167-182), Description(184-199), AuraDescription(201-216) — each 16 Lang fields, mask at +16 is int32",
+    "string_cols": [150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216]
+  },
+  "SkillLine.dbc": {
+    "_comment": "56 columns. DisplayName_Lang(3-18), Description_Lang(20-35), AlternateVerb_Lang(37-52) — each 16 Lang fields",
+    "string_cols": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52]
+  },
+  "SkillLineAbility.dbc": {
+    "_comment": "13 columns, all int32",
+    "string_cols": []
+  },
+  "SpellIcon.dbc": {
+    "_comment": "2 columns: ID(int32), TextureFilename(string)",
+    "string_cols": [1]
+  },
+  "SkillRaceClassInfo.dbc": {
+    "_comment": "8 columns, all int32",
+    "string_cols": []
+  },
+  "Map.dbc": {
+    "_comment": "62 cols (WOTLK 3.3.5a). Directory(1)=string, MapName_Lang(5-20), MapDescription0_Lang(23-38), MapDescription1_Lang(40-55)",
+    "string_cols": [1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]
+  },
+  "AreaTable.dbc": {
+    "_comment": "36 cols. AreaName_Lang(11-26) = 16 strings",
+    "string_cols": [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
+  },
+  "CreatureDisplayInfo.dbc": {
+    "_comment": "16 cols. TextureVariation_1/2/3(6,7,8), PortraitTextureName(9) = 4 strings",
+    "string_cols": [6, 7, 8, 9]
+  },
+  "CreatureModelData.dbc": {
+    "_comment": "28 cols. ModelName(2) = string",
+    "string_cols": [2]
+  },
+  "LoadingScreens.dbc": {
+    "_comment": "4 cols. Name(1), FileName(2) = strings",
+    "string_cols": [1, 2]
+  },
+  "MapDifficulty.dbc": {
+    "_comment": "23 cols. Message_Lang(3-18)=16 strings, Difficultystring(22)=string",
+    "string_cols": [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 22]
+  },
+  "SoundEntries.dbc": {
+    "_comment": "30 cols. Name(2), File_1~10(3-12), DirectoryBase(23) = 12 strings",
+    "string_cols": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 23]
+  },
+  "WorldSafeLocs.dbc": {
+    "_comment": "22 cols. AreaName_Lang(5-20) = 16 strings",
+    "string_cols": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  },
+  "ZoneMusic.dbc": {
+    "_comment": "8 cols. SetName(1) = string",
+    "string_cols": [1]
+  }
+}

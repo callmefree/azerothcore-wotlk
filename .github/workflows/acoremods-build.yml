@@ -88,6 +88,48 @@ jobs:
           cp -r classscrolls-src modules/classscrolls && echo "Copied: classscrolls"
           cp -r araxia-areas-src modules/araxia-areas && echo "Copied: araxia-areas"
 
+      - name: Convert DBC files (CSV → binary .dbc)
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p server/data/dbc _dbc_prebuilt
+          # Collect pre-built binary DBCs (Morza, etc.)
+          find araxia-areas-src -name "*.dbc" -type f 2>/dev/null | while read f; do
+            cp -v "$f" _dbc_prebuilt/ || true
+          done
+          # Process each mod's DBC CSVs in sequence, accumulating with merge
+          for src in "delves-src/DBC_CSV/DBFilesClient" \
+                     "classscrolls-src/CSV" \
+                     "araxia-areas-src/Isle-of-Giants-main/DBFilesClient"; do
+            if [ -d "$src" ]; then
+              echo "  [DBC] Processing: $src"
+              python .github/scripts/csv2dbc.py \
+                --batch "$src" server/data/dbc \
+                --schema .github/scripts/dbc_schema.json \
+                --merge-dir _dbc_prebuilt || echo "  [WARN] DBC conversion issue for $src"
+              # Accumulate: merge-dir becomes server/data/dbc for next mod
+              rm -rf _dbc_prebuilt && mkdir -p _dbc_prebuilt
+              cp server/data/dbc/*.dbc _dbc_prebuilt/ 2>/dev/null || true
+            fi
+          done
+          rm -rf _dbc_prebuilt
+          echo "=== DBC Files ==="
+          ls -la server/data/dbc/ 2>/dev/null || echo "(no dbc files)"
+
+      - name: Build client MPQ patches
+        if: success()
+        shell: bash
+        run: |
+          mkdir -p server/data
+          python .github/scripts/build_mpq.py --auto --out-dir server/data/ || echo "  [WARN] MPQ build issue"
+          # Collect any pre-built MPQs from AraxiaCustomAreas
+          for f in $(find araxia-areas-src -name "*.mpq" -type f 2>/dev/null); do
+            cp -v "$f" server/data/ || true
+          done
+          echo "=== MPQ Patches ==="
+          ls -la server/data/*.mpq 2>/dev/null || echo "(no mpq files)"
+          ls -la server/data/*.mpq.dir 2>/dev/null || echo "(no mpq fallback dirs)"
+
       - name: Install dependencies
         shell: bash
         run: |
