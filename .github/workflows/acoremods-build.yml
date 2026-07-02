@@ -38,6 +38,28 @@ jobs:
           repository: callmefree/mod-ale
           path: mod-ale-src
 
+      # ── 可选模组（注释掉 = 剔除） ──────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: callmefree/mod-mythic-plus
+          path: mod-mythic-plus-src
+
+      - uses: actions/checkout@v4
+        with:
+          repository: callmefree/Delves
+          path: delves-src
+
+      - uses: actions/checkout@v4
+        with:
+          repository: callmefree/ClassScrolls
+          path: classscrolls-src
+
+      - uses: actions/checkout@v4
+        with:
+          repository: callmefree/AraxiaCustomAreas
+          path: araxia-areas-src
+      # ──────────────────────────────────────────────────
+
       - name: Copy modules
         shell: bash
         run: |
@@ -57,6 +79,14 @@ jobs:
         run: |
           cp -r mod-ale-src modules/mod-ale
           echo "Copied: mod-ale"
+
+      - name: Copy new mods
+        shell: bash
+        run: |
+          cp -r mod-mythic-plus-src modules/mod-mythic-plus && echo "Copied: mod-mythic-plus"
+          cp -r delves-src modules/delves && echo "Copied: delves"
+          cp -r classscrolls-src modules/classscrolls && echo "Copied: classscrolls"
+          cp -r araxia-areas-src modules/araxia-areas && echo "Copied: araxia-areas"
 
       - name: Install dependencies
         shell: bash
