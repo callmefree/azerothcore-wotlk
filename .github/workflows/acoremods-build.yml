@@ -121,7 +121,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p server/data
-          python .github/scripts/build_mpq.py --auto --out-dir server/data/ || echo "  [WARN] MPQ build issue"
+          # 纯 Python MPQ 构建器（无需 smpq 依赖）
+          export ACOREMODS_ROOT=${{ github.workspace }}
+          python .github/scripts/build_mpq_pure.py --auto --out-dir server/data/ || \
+            python .github/scripts/build_mpq.py --auto --out-dir server/data/ || \
+            echo "  [WARN] MPQ build issue"
           # Collect any pre-built MPQs from AraxiaCustomAreas
           for f in $(find araxia-areas-src -name "*.mpq" -type f 2>/dev/null); do
             cp -v "$f" server/data/ || true
@@ -168,6 +172,56 @@ jobs:
           find . \( -name "authserver.exe" -o -name "worldserver.exe" \) 2>/dev/null | while read f; do cp -v "$f" server/bin/ 2>/dev/null || true; done
           find . -name "*.dll" -path "*/bin/*" 2>/dev/null | while read f; do cp -v "$f" server/bin/ 2>/dev/null || true; done
           ls -la server/bin/ 2>/dev/null || echo "(no binaries)"
+
+      - name: Collect OpenSSL runtime DLLs
+        if: success()
+        shell: bash
+        run: |
+          # authserver 需要 OpenSSL 4.x（主加密）+ 3.x（legacy provider）两类 DLL
+          # choco install openssl 默认装 4.x，以下步骤补充 3.x DLLs
+
+          echo "=== 1) 收集 choco 安装的 OpenSSL DLLs ==="
+          for dir in "/c/Program Files/OpenSSL"*; do
+            [ -d "$dir" ] || continue
+            echo "  Found: $dir"
+            find "$dir" -name "*.dll" -type f 2>/dev/null | while read dll; do
+              cp -v "$dll" server/bin/
+            done
+          done
+
+          echo "=== 2) 补充 OpenSSL 3.x DLLs（如缺失）==="
+          if [ ! -f server/bin/libcrypto-3-x64.dll ]; then
+            SSL3_MSI="$RUNNER_TEMP/openssl-3.msi"
+            SSL3_DIR="$RUNNER_TEMP/openssl-3"
+            echo "  Downloading OpenSSL 3.6.3 Light MSI..."
+            curl -sL --connect-timeout 30 \
+              -o "$SSL3_MSI" \
+              "https://slproweb.com/download/Win64OpenSSL_Light-3_6_3.msi" || {
+              echo "  [WARN] curl failed, trying PowerShell..."
+              powershell -Command "
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                (New-Object System.Net.WebClient).DownloadFile(
+                  'https://slproweb.com/download/Win64OpenSSL_Light-3_6_3.msi',
+                  '${SSL3_MSI//\//\\}')
+              " 2>/dev/null || true
+            }
+            if [ -f "$SSL3_MSI" ]; then
+              mkdir -p "$SSL3_DIR"
+              if command -v 7z &>/dev/null; then
+                7z x -o"$SSL3_DIR" "$SSL3_MSI" -y > /dev/null 2>&1
+              else
+                powershell -Command "
+                  Start-Process msiexec.exe -ArgumentList '/a','${SSL3_MSI//\//\\}','/qn','TARGETDIR=${SSL3_DIR//\//\\}' -Wait
+                " 2>/dev/null || true
+              fi
+              find "$SSL3_DIR" -name "*.dll" -type f 2>/dev/null | while read dll; do
+                cp -v "$dll" server/bin/
+              done
+            fi
+          fi
+
+          echo "=== 3) 最终 DLL 清单 ==="
+          ls -la server/bin/libcrypto*.dll server/bin/libssl*.dll server/bin/legacy*.dll 2>/dev/null || echo "  [WARN] OpenSSL DLLs 缺失！"
 
       - name: Collect configs
         if: success()
